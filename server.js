@@ -137,6 +137,7 @@ setInterval(() => {
 function isAdminOnlyRoute(req) {
     if (req.path.startsWith('/staff')) return true;                   // staff registry & CRUD
     if (req.method === 'PUT' && req.path === '/config') return true;  // global settings writes
+    if (req.method === 'POST' && req.path === '/sms/test') return true; // gateway test send
     if (req.method === 'DELETE') return true;                         // all deletes are owner-level
     return false;
 }
@@ -536,7 +537,7 @@ app.get('/api/invoices', async (req, res) => {
 
 // POST: Execute atomic POS Checkout (depletes completed product batch FIFO stock & tracks B2B credit)
 app.post('/api/checkout', async (req, res) => {
-    const { customerType, partnerId, customerName, total, discount, tax, taxRate, grandTotal, paymentMethod, items, simulatedDate } = req.body;
+    const { customerType, partnerId, customerName, customerPhone, total, discount, tax, taxRate, grandTotal, paymentMethod, items, simulatedDate } = req.body;
     
     if (!customerType || grandTotal === undefined || !paymentMethod || !items || !items.length || !simulatedDate) {
         return res.status(400).json({ error: 'Missing core checkout parameters' });
@@ -662,6 +663,7 @@ app.post('/api/checkout', async (req, res) => {
                     customerType: customerType,
                     partnerId: customerType === 'B2B' ? partnerId : null,
                     customerName: customerName,
+                    customerPhone: customerPhone || null,
                     date: simulatedDate,
                     dueDate: dueDate,
                     total: serverTotal,
@@ -903,7 +905,7 @@ app.get('/api/partners', async (req, res) => {
 
 // POST: Add new B2B Partner
 app.post('/api/partners', async (req, res) => {
-    const { name, address, terms, limit } = req.body;
+    const { name, address, phone, terms, limit } = req.body;
     if (!name || !address || limit === undefined) {
         return res.status(400).json({ error: 'Missing core B2B registration details' });
     }
@@ -912,6 +914,7 @@ app.post('/api/partners', async (req, res) => {
             data: {
                 name,
                 address,
+                phone: phone || null,
                 terms: Number(terms) || 30,
                 limit: Number(limit)
             }
@@ -1115,16 +1118,17 @@ app.delete('/api/products/:id', async (req, res) => {
 app.put('/api/partners/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, address, terms, limit } = req.body;
-        
+        const { name, address, phone, terms, limit } = req.body;
+
         const partner = await prisma.b2bPartner.findUnique({ where: { id } });
         if (!partner) return res.status(404).json({ error: 'Partner not found' });
-        
+
         const updated = await prisma.b2bPartner.update({
             where: { id },
             data: {
                 ...(name !== undefined && { name }),
                 ...(address !== undefined && { address }),
+                ...(phone !== undefined && { phone: phone || null }),
                 ...(terms !== undefined && { terms: Number(terms) }),
                 ...(limit !== undefined && { limit: Number(limit) })
             }
@@ -1587,7 +1591,9 @@ app.get('/api/config', async (req, res) => {
         if (!config) {
             config = await prisma.globalConfig.create({ data: { id: 'global' } });
         }
-        res.json(config);
+        // Never return the raw SMS API token to the browser — expose only whether one is set.
+        const { smsApiToken, ...safe } = config;
+        res.json({ ...safe, smsApiTokenSet: !!smsApiToken });
     } catch (e) {
         res.status(500).json({ error: 'Failed to fetch global configuration', details: e.message });
     }
@@ -1596,7 +1602,8 @@ app.get('/api/config', async (req, res) => {
 // PUT: Update global configuration (Admin only — enforced by auth middleware)
 app.put('/api/config', async (req, res) => {
     try {
-        const { defaultVAT, defaultCreditLimit, autoPrintReceipt, bakeryName, bakeryAddress, bakeryPhone } = req.body;
+        const { defaultVAT, defaultCreditLimit, autoPrintReceipt, bakeryName, bakeryAddress, bakeryPhone,
+                smsEnabled, smsProvider, smsApiToken, smsSenderId, smsUserId } = req.body;
         const config = await prisma.globalConfig.upsert({
             where: { id: 'global' },
             create: { id: 'global' },
@@ -1606,12 +1613,172 @@ app.put('/api/config', async (req, res) => {
                 ...(autoPrintReceipt !== undefined && { autoPrintReceipt: Boolean(autoPrintReceipt) }),
                 ...(bakeryName !== undefined && { bakeryName }),
                 ...(bakeryAddress !== undefined && { bakeryAddress }),
-                ...(bakeryPhone !== undefined && { bakeryPhone })
+                ...(bakeryPhone !== undefined && { bakeryPhone }),
+                ...(smsEnabled !== undefined && { smsEnabled: Boolean(smsEnabled) }),
+                ...(smsProvider !== undefined && { smsProvider }),
+                ...(smsSenderId !== undefined && { smsSenderId }),
+                ...(smsUserId !== undefined && { smsUserId }),
+                // Only overwrite the token when a non-empty value is supplied, so the
+                // UI can save other settings without wiping a stored token.
+                ...(smsApiToken !== undefined && smsApiToken !== '' && { smsApiToken })
             }
         });
-        res.json(config);
+        const { smsApiToken: _t, ...safe } = config;
+        res.json({ ...safe, smsApiTokenSet: !!config.smsApiToken });
     } catch (e) {
         res.status(500).json({ error: 'Failed to update global configuration', details: e.message });
+    }
+});
+
+/* ==========================================================================
+   6.5  SMS GATEWAY (Sri Lanka: Text.lk / Notify.lk) — receipts & reminders
+   ========================================================================== */
+
+// Read (or lazily create) the singleton config row.
+async function getGlobalConfig() {
+    let c = await prisma.globalConfig.findUnique({ where: { id: 'global' } });
+    if (!c) c = await prisma.globalConfig.create({ data: { id: 'global' } });
+    return c;
+}
+
+// Normalise a Sri Lankan number to gateway form: 94XXXXXXXXX (94 + 9 digits).
+function normalizeLkPhone(raw) {
+    if (!raw) return null;
+    let d = String(raw).replace(/[^0-9]/g, '');
+    if (d.startsWith('0')) d = '94' + d.slice(1);
+    else if (d.length === 9) d = '94' + d; // bare mobile like 771234567
+    if (!/^94\d{9}$/.test(d)) return null;
+    return d;
+}
+
+// Send one SMS. Returns { ok, error?, response? } and never throws into a route.
+async function sendSms(to, message, config) {
+    if (!config || !config.smsEnabled) return { ok: false, error: 'SMS is turned off in Settings.' };
+    if (!config.smsApiToken) return { ok: false, error: 'No SMS API token configured in Settings.' };
+    const recipient = normalizeLkPhone(to);
+    if (!recipient) return { ok: false, error: `Invalid Sri Lankan phone number: ${to}` };
+
+    try {
+        if (config.smsProvider === 'notifylk') {
+            const params = new URLSearchParams({
+                user_id: config.smsUserId || '',
+                api_key: config.smsApiToken,
+                sender_id: config.smsSenderId || 'NotifyDEMO',
+                to: recipient,
+                message
+            });
+            const r = await fetch('https://app.notify.lk/api/v1/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: params.toString()
+            });
+            const data = await r.json().catch(() => ({}));
+            if (!r.ok || data.status === 'error') return { ok: false, error: data.message || `Gateway error (${r.status})`, response: data };
+            return { ok: true, response: data };
+        }
+
+        // Default: Text.lk v3
+        const r = await fetch('https://app.text.lk/api/v3/sms/send', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${config.smsApiToken}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ recipient, sender_id: config.smsSenderId || 'TextLKDemo', message })
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok || data.status === 'error') return { ok: false, error: data.message || `Gateway error (${r.status})`, response: data };
+        return { ok: true, response: data };
+    } catch (e) {
+        return { ok: false, error: e.message };
+    }
+}
+
+function reminderText(config, inv) {
+    const name = (inv.partner && inv.partner.name) || inv.customerName || 'Customer';
+    return `${config.bakeryName}: Hi ${name}, Rs ${Math.round(inv.outstanding).toLocaleString()} is outstanding on invoice ${inv.invoiceNo} (due ${inv.dueDate}). Kindly settle at your earliest. Thank you.`;
+}
+
+// POST: Admin test send to verify gateway credentials
+app.post('/api/sms/test', async (req, res) => {
+    try {
+        const { to } = req.body;
+        if (!to) return res.status(400).json({ error: 'A test phone number is required.' });
+        const config = await getGlobalConfig();
+        const result = await sendSms(to, `${config.bakeryName}: Test message from your BlissBurn system. SMS is working!`, config);
+        if (!result.ok) return res.status(400).json({ error: result.error });
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: 'SMS test failed', details: e.message });
+    }
+});
+
+// POST: Send a sale receipt by SMS
+app.post('/api/sms/receipt', async (req, res) => {
+    try {
+        const { invoiceId, phone } = req.body;
+        if (!invoiceId) return res.status(400).json({ error: 'invoiceId is required' });
+        const config = await getGlobalConfig();
+        if (!config.smsEnabled) return res.status(400).json({ error: 'SMS is turned off in Settings.' });
+        const inv = await prisma.invoice.findUnique({ where: { id: invoiceId } });
+        if (!inv) return res.status(404).json({ error: 'Invoice not found' });
+        const to = phone || inv.customerPhone;
+        if (!to) return res.status(400).json({ error: 'No phone number for this customer.' });
+        if (phone && phone !== inv.customerPhone) {
+            await prisma.invoice.update({ where: { id: invoiceId }, data: { customerPhone: phone } });
+        }
+        const msg = `${config.bakeryName}: Receipt ${inv.invoiceNo}. Total Rs ${Math.round(inv.grandTotal).toLocaleString()}. Thank you for your purchase!`;
+        const result = await sendSms(to, msg, config);
+        if (!result.ok) return res.status(400).json({ error: result.error });
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to send receipt SMS', details: e.message });
+    }
+});
+
+// POST: Send a single payment reminder for one invoice
+app.post('/api/sms/reminder', async (req, res) => {
+    try {
+        const { invoiceId } = req.body;
+        if (!invoiceId) return res.status(400).json({ error: 'invoiceId is required' });
+        const config = await getGlobalConfig();
+        if (!config.smsEnabled) return res.status(400).json({ error: 'SMS is turned off in Settings.' });
+        const inv = await prisma.invoice.findUnique({ where: { id: invoiceId }, include: { partner: true } });
+        if (!inv) return res.status(404).json({ error: 'Invoice not found' });
+        const to = inv.partner && inv.partner.phone;
+        if (!to) return res.status(400).json({ error: 'No phone number on file for this business customer.' });
+        const result = await sendSms(to, reminderText(config, inv), config);
+        if (!result.ok) return res.status(400).json({ error: result.error });
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to send reminder', details: e.message });
+    }
+});
+
+// POST: Send reminders to every overdue, still-owing business customer
+app.post('/api/sms/reminders/run', async (req, res) => {
+    try {
+        const { simulatedDate } = req.body;
+        const config = await getGlobalConfig();
+        if (!config.smsEnabled) return res.status(400).json({ error: 'SMS is turned off in Settings.' });
+        const today = simulatedDate || new Date().toISOString().split('T')[0];
+        const invoices = await prisma.invoice.findMany({
+            where: { customerType: 'B2B', outstanding: { gt: 0 }, dueDate: { lt: today } },
+            include: { partner: true }
+        });
+        let sent = 0, failed = 0, skipped = 0;
+        const details = [];
+        for (const inv of invoices) {
+            const to = inv.partner && inv.partner.phone;
+            if (!to) { skipped++; details.push({ invoice: inv.invoiceNo, status: 'no phone' }); continue; }
+            const result = await sendSms(to, reminderText(config, inv), config);
+            if (result.ok) { sent++; details.push({ invoice: inv.invoiceNo, status: 'sent' }); }
+            else { failed++; details.push({ invoice: inv.invoiceNo, status: 'failed', error: result.error }); }
+        }
+        res.json({ success: true, sent, failed, skipped, total: invoices.length, details });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to run reminders', details: e.message });
     }
 });
 

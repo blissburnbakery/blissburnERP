@@ -636,6 +636,36 @@ function launchReceiptDialog(invoice, cartItems) {
     }
     if (tenderedInput) tenderedInput.value = "";
 
+    // Optional SMS receipt row — only when SMS is enabled in Settings
+    const smsRow = document.getElementById("receiptSmsRow");
+    const smsPhone = document.getElementById("receiptSmsPhone");
+    const smsBtn = document.getElementById("sendReceiptSmsBtn");
+    const smsEnabled = window.BlissburnState.globalConfig && window.BlissburnState.globalConfig.smsEnabled;
+    if (smsRow) {
+        if (smsEnabled && (invoice.id || invoice.invoiceNo)) {
+            smsRow.style.display = "flex";
+            if (smsPhone) smsPhone.value = invoice.customerPhone || "";
+            if (smsBtn) smsBtn.onclick = async () => {
+                if (window.requireOnline && !window.requireOnline("send a receipt SMS")) return;
+                const phone = smsPhone.value.trim();
+                if (!phone) { showToast("warning", "Enter a number", "Type the customer's mobile number first."); return; }
+                try {
+                    const res = await fetch(`${window.location.origin}/api/sms/receipt`, {
+                        method: "POST", headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ invoiceId: invoice.id, phone })
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || "Send failed");
+                    showToast("success", "Receipt Sent", `Text receipt sent to ${phone}.`);
+                } catch (e) {
+                    showToast("danger", "SMS Failed", e.message);
+                }
+            };
+        } else {
+            smsRow.style.display = "none";
+        }
+    }
+
     // Show Modal dialog
     dialog.showModal();
 

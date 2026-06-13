@@ -801,6 +801,68 @@ window.renderSettings = function() {
         staffCard.classList.add("hidden");
     }
 
+    // SMS Notifications card (admin only)
+    const smsCard = document.getElementById("settingsSmsCard");
+    if (smsCard) {
+        if (activeRole === "admin") {
+            smsCard.classList.remove("hidden");
+            const cfg = state.globalConfig || {};
+            const en = document.getElementById("settingsSmsEnabled");
+            const prov = document.getElementById("settingsSmsProvider");
+            const sender = document.getElementById("settingsSmsSenderId");
+            const userId = document.getElementById("settingsSmsUserId");
+            const token = document.getElementById("settingsSmsApiToken");
+            if (en) en.checked = Boolean(cfg.smsEnabled);
+            if (prov) prov.value = cfg.smsProvider || "textlk";
+            if (sender) sender.value = cfg.smsSenderId || "";
+            if (userId) userId.value = cfg.smsUserId || "";
+            if (token) token.placeholder = cfg.smsApiTokenSet ? "Token saved — leave blank to keep" : "Enter token";
+
+            const saveBtn = document.getElementById("saveSmsSettingsBtn");
+            if (saveBtn) saveBtn.onclick = async () => {
+                if (window.requireOnline && !window.requireOnline("save SMS settings")) return;
+                const payload = {
+                    smsEnabled: en.checked,
+                    smsProvider: prov.value,
+                    smsSenderId: sender.value.trim(),
+                    smsUserId: userId.value.trim()
+                };
+                if (token.value.trim()) payload.smsApiToken = token.value.trim();
+                try {
+                    const res = await fetch(`${window.location.origin}/api/config`, {
+                        method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || "Save failed");
+                    token.value = "";
+                    await window.syncWithBackend();
+                    showToast("success", "SMS Settings Saved", "Text-message settings updated.");
+                } catch (e) {
+                    showToast("danger", "Save Failed", e.message);
+                }
+            };
+
+            const testBtn = document.getElementById("sendTestSmsBtn");
+            if (testBtn) testBtn.onclick = async () => {
+                if (window.requireOnline && !window.requireOnline("send a test SMS")) return;
+                const to = document.getElementById("settingsSmsTestTo").value.trim();
+                if (!to) { showToast("warning", "Enter a number", "Type a mobile number to send the test to."); return; }
+                try {
+                    const res = await fetch(`${window.location.origin}/api/sms/test`, {
+                        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ to })
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || "Test failed");
+                    showToast("success", "Test Sent", `A test message was sent to ${to}.`);
+                } catch (e) {
+                    showToast("danger", "Test Failed", e.message);
+                }
+            };
+        } else {
+            smsCard.classList.add("hidden");
+        }
+    }
+
     // Bind Add Staff triggers
     const addStaffBtn = document.getElementById("addStaffBtn");
     const closeStaffBtn = document.getElementById("closeAddStaffDialog");

@@ -36,6 +36,34 @@ window.renderAccounts = function() {
         };
     }
     
+    // Bind "Remind All Overdue" bulk SMS — only shown/usable when SMS is on
+    const remindAllBtn = document.getElementById("remindAllOverdueBtn");
+    if (remindAllBtn) {
+        const smsOn = window.BlissburnState.globalConfig && window.BlissburnState.globalConfig.smsEnabled;
+        remindAllBtn.style.display = smsOn ? "inline-flex" : "none";
+        remindAllBtn.onclick = async () => {
+            if (window.requireOnline && !window.requireOnline("send reminders")) return;
+            const ok = await window.showConfirm({
+                title: "Text All Overdue Customers",
+                message: "Send an SMS payment reminder to every business customer with an overdue, unpaid invoice. Each message costs money. Continue?",
+                confirmText: "Send Reminders"
+            });
+            if (!ok) return;
+            try {
+                const res = await fetch(`${window.location.origin}/api/sms/reminders/run`, {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ simulatedDate: window.BlissburnState.simulatedDate })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || "Failed to send reminders");
+                showToast("success", "Reminders Sent",
+                    `Sent ${data.sent}, failed ${data.failed}, skipped ${data.skipped} (no phone) of ${data.total} overdue.`);
+            } catch (e) {
+                showToast("danger", "Reminders Failed", e.message);
+            }
+        };
+    }
+
     // Bind CSV Export for Financial Transactions
     const exportTxnsBtn = document.getElementById("exportTxnsCSVBtn");
     if (exportTxnsBtn) {

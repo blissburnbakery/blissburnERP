@@ -94,10 +94,13 @@ function renderB2BPartners() {
                 </div>
             </div>
             
-            <div class="mt-3 flex gap-2 border-t border-outline-variant/20 pt-3">
+            <div class="mt-3 flex flex-wrap gap-2 border-t border-outline-variant/20 pt-3">
                 <button class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-primary bg-primary-container/30 rounded-lg hover:bg-primary-container/60 transition-colors" onclick="editPartner('${partner.id}')">
                     <span class="material-symbols-outlined text-sm">edit</span> Edit
                 </button>
+                ${partner.balance > 0 ? `<button class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-amber-800 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors" onclick="remindPartner('${partner.id}')">
+                    <span class="material-symbols-outlined text-sm">sms</span> Remind
+                </button>` : ''}
                 <button class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100 transition-colors" onclick="deletePartner('${partner.id}')">
                     <span class="material-symbols-outlined text-sm">delete</span> Delete
                 </button>
@@ -365,6 +368,44 @@ window.deletePartner = async function(partnerId) {
     addNotification('info', 'Customer Removed', `${partner.name} removed from business customers.`);
 };
 
+// Send an SMS payment reminder for a partner's most overdue unpaid invoice
+window.remindPartner = async function(partnerId) {
+    if (window.requireOnline && !window.requireOnline("send a reminder")) return;
+    const state = window.BlissburnState;
+    const partner = state.partners.find(p => p.id === partnerId);
+    if (!partner) return;
+    if (!partner.phone) {
+        showToast("warning", "No Mobile Number", `Add a mobile number for ${partner.name} (Edit) to send reminders.`);
+        return;
+    }
+    // Pick the partner's oldest still-owing invoice
+    const owing = state.invoices
+        .filter(i => i.partnerId === partnerId && i.outstanding > 0 && i.status !== "Voided" && i.status !== "Refunded")
+        .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+    if (owing.length === 0) {
+        showToast("info", "Nothing Outstanding", `${partner.name} has no unpaid invoices.`);
+        return;
+    }
+    const target = owing[0];
+    const ok = await window.showConfirm({
+        title: "Send Payment Reminder",
+        message: `Send an SMS to ${partner.name} (${partner.phone}) about invoice ${target.invoiceNo || target.id} — Rs ${Math.round(target.outstanding).toLocaleString()} outstanding?`,
+        confirmText: "Send SMS"
+    });
+    if (!ok) return;
+    try {
+        const res = await fetch(`${window.location.origin}/api/sms/reminder`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ invoiceId: target.id })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Send failed");
+        showToast("success", "Reminder Sent", `Payment reminder sent to ${partner.name}.`);
+    } catch (e) {
+        showToast("danger", "SMS Failed", e.message);
+    }
+};
+
 // Edit a B2B partner (pre-fills the add dialog)
 window.editPartner = function(partnerId) {
     const state = window.BlissburnState;
@@ -373,6 +414,8 @@ window.editPartner = function(partnerId) {
     
     document.getElementById('b2bName').value = partner.name;
     document.getElementById('b2bAddress').value = partner.address;
+    const phoneEl = document.getElementById('b2bPhone');
+    if (phoneEl) phoneEl.value = partner.phone || '';
     document.getElementById('b2bTerms').value = partner.terms;
     document.getElementById('b2bCreditLimit').value = partner.limit;
     

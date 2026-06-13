@@ -99,6 +99,7 @@ model B2bPartner {
   id        String    @id @default(uuid())
   name      String    @unique
   address   String
+  phone     String?   // mobile for SMS payment reminders, e.g. "+94771234567"
   terms     Int       // 30 or 60 days terms
   limit     Float     // credit ceiling
   balance   Float     @default(0.0) // current outstanding debt
@@ -115,6 +116,7 @@ model Invoice {
   partnerId    String?
   partner      B2bPartner?   @relation(fields: [partnerId], references: [id])
   customerName String        // Walk-in name or company name
+  customerPhone String?      // optional mobile for SMS receipts (walk-in customers)
   date         String        // ISO date string
   dueDate      String        // ISO date string
   total        Float         // Subtotal retail
@@ -197,5 +199,11 @@ model GlobalConfig {
   bakeryName        String   @default("Blissburn Products Co.")
   bakeryAddress     String   @default("Industrial Estate, Zone B, Colombo, Sri Lanka")
   bakeryPhone       String   @default("+94 11 2345 678")
+  // SMS gateway (Sri Lanka): Text.lk or Notify.lk
+  smsEnabled        Boolean  @default(false)
+  smsProvider       String   @default("textlk") // "textlk" | "notifylk"
+  smsApiToken       String?  // gateway API token / api_key (kept server-side, never returned raw)
+  smsSenderId       String?  // registered sender ID / mask
+  smsUserId         String?  // Notify.lk user_id (unused for Text.lk)
   updatedAt         DateTime @updatedAt
 }

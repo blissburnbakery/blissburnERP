@@ -195,7 +195,12 @@ window.syncWithBackend = async function() {
         window.BlissburnState.globalConfig = {
             defaultVAT: config.defaultVAT,
             defaultCreditLimit: config.defaultCreditLimit,
-            autoPrintReceipt: config.autoPrintReceipt
+            autoPrintReceipt: config.autoPrintReceipt,
+            smsEnabled: config.smsEnabled,
+            smsProvider: config.smsProvider,
+            smsSenderId: config.smsSenderId,
+            smsUserId: config.smsUserId,
+            smsApiTokenSet: config.smsApiTokenSet
         };
         window.BlissburnState.bakeryConfig = {
             name: config.bakeryName,
@@ -413,10 +418,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const name = document.getElementById("b2bName").value;
             const address = document.getElementById("b2bAddress").value;
+            const phoneEl = document.getElementById("b2bPhone");
+            const phone = phoneEl ? phoneEl.value.trim() : "";
             const terms = Number(document.getElementById("b2bTerms").value);
             const limit = Number(document.getElementById("b2bCreditLimit").value);
-            
-            const postData = { name, address, terms, limit };
+
+            const postData = { name, address, phone, terms, limit };
             
             try {
                 // Submitting partner registration or update to server
