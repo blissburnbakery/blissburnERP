@@ -24,7 +24,11 @@ const ALLOWED_ORIGINS = [
     'http://localhost:5050',
     'http://localhost:3000',
     'http://127.0.0.1:5050',
-    process.env.FRONTEND_URL
+    process.env.FRONTEND_URL,
+    // Railway injects RAILWAY_PUBLIC_DOMAIN (e.g. myapp.up.railway.app) at runtime.
+    // The frontend is served by this same server, so its own public URL must be allowed.
+    process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : null,
+    process.env.RAILWAY_PUBLIC_DOMAIN ? `http://${process.env.RAILWAY_PUBLIC_DOMAIN}` : null
 ].filter(Boolean);
 
 app.use(cors({
