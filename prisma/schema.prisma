@@ -1,0 +1,201 @@
+// Prisma database schema for Blissburn ERP
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// 1. Products Table (e.g. Creamy Bun, Coconut Bun)
+model Product {
+  id             String          @id @default(uuid())
+  name           String          @unique
+  category       String          // buns, bread, etc.
+  retailPrice    Float
+  wholesalePrice Float
+  shelfLife      Int             // in days
+  icon           String          // FontAwesome icon class name
+  dailyTarget    Int             @default(100) // daily production quota target (pcs)
+  recipes        RecipeItem[]
+  productionLogs ProductionLog[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+// 2. Bill of Materials (BOM Recipes) Table
+model RecipeItem {
+  id            String     @id @default(uuid())
+  productId     String
+  product       Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  ingredientId  String
+  ingredient    Ingredient @relation(fields: [ingredientId], references: [id])
+  quantityGrams Float      // ingredient quantity required per 1 unit of product
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  
+  @@unique([productId, ingredientId])
+  @@index([productId])
+  @@index([ingredientId])
+}
+
+// 3. Central Stock Ingredients Table
+model Ingredient {
+  id          String       @id @default(uuid())
+  code        String       @unique // e.g. i1, i2
+  name        String
+  stock       Float        // in grams (g) or pcs
+  unit        String       // g, pcs
+  threshold   Float        // low stock threshold
+  unitCost    Float        @default(0.0) // cost per kg (unit 'g') or per pcs — used for wastage write-offs
+  isPerishable Boolean
+  recipeItems RecipeItem[]
+  fifoBatches FifoBatch[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([code])
+}
+
+// 4. FIFO Perishable Ingredient Batches Queue
+model FifoBatch {
+  id             String     @id @default(uuid())
+  batchCode      String     @unique // e.g. f-101
+  ingredientId   String
+  ingredient     Ingredient @relation(fields: [ingredientId], references: [id])
+  dateReceived   String     // ISO date string format e.g. "2026-05-26"
+  originalQty    Float
+  remainingQty   Float
+  expiryDate     String     // ISO date string format
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  
+  @@index([ingredientId])
+  @@index([batchCode])
+}
+
+// 5. Completed Production Batches
+model ProductionLog {
+  id            String   @id @default(uuid())
+  batchCode     String   @unique // e.g. BCH-1001
+  productId     String
+  product       Product  @relation(fields: [productId], references: [id])
+  quantity      Int
+  dateProduced  String   // ISO date string
+  expiryDate    String   // ISO date string
+  active        Boolean  @default(true) // remains true until sold out
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([productId])
+  @@index([batchCode])
+}
+
+// 6. B2B Corporate Wholesale Clients Profiles
+model B2bPartner {
+  id        String    @id @default(uuid())
+  name      String    @unique
+  address   String
+  terms     Int       // 30 or 60 days terms
+  limit     Float     // credit ceiling
+  balance   Float     @default(0.0) // current outstanding debt
+  invoices  Invoice[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+// 7. Issued Invoices (B2C Cash Sales & B2B Credit Invoices)
+model Invoice {
+  id           String        @id @default(uuid())
+  invoiceNo    String        @unique // e.g. INV-2026-0001, B2C-TXN-1001
+  customerType String        // B2C or B2B
+  partnerId    String?
+  partner      B2bPartner?   @relation(fields: [partnerId], references: [id])
+  customerName String        // Walk-in name or company name
+  date         String        // ISO date string
+  dueDate      String        // ISO date string
+  total        Float         // Subtotal retail
+  discount     Float         // wholesale B2B savings discount
+  tax          Float         @default(0.0)
+  taxRate      Float         @default(0.0)
+  grandTotal   Float         // Invoiced net total
+  method       String        // cash, card, credit
+  outstanding  Float         @default(0.0)
+  paidAmount   Float         @default(0.0)
+  status       String        // Paid, Unpaid, Partially Paid, Overdue
+  items        InvoiceItem[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  
+  @@index([partnerId])
+  @@index([invoiceNo])
+  @@index([date])
+}
+
+// 8. Invoice Line Items Table
+model InvoiceItem {
+  id             String   @id @default(uuid())
+  invoiceId      String
+  invoice        Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  productName    String
+  quantity       Int
+  retailPrice    Float
+  wholesalePrice Float
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  @@index([invoiceId])
+}
+
+// 9. Financial Ledger Cashbook Transactions Audit Log
+model FinancialLog {
+  id          String   @id @default(uuid())
+  txnCode     String   @unique // e.g. TXN-5001
+  date        String   // ISO date string
+  description String
+  method      String   // cash, card, credit, payment-in
+  amount      Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([txnCode])
+  @@index([date])
+}
+
+// 10. Real-time System Notifications Ledger
+model Notification {
+  id        String   @id @default(uuid())
+  type      String   // info, success, warning, danger
+  title     String
+  desc      String
+  time      String   // time stamp description e.g. "2 hours ago"
+  isAudit   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// 11. Multi-Staff User Accounts Table
+model Staff {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  name      String
+  role      String   // admin, production, sales, accountant, delivery
+  passkey   String   // scrypt hash in "salt:hash" hex form (legacy plaintext auto-upgraded on login)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// 12. Global System Configuration (singleton row, id = "global")
+model GlobalConfig {
+  id                String   @id @default("global")
+  defaultVAT        Float    @default(8)
+  defaultCreditLimit Float   @default(100000)
+  autoPrintReceipt  Boolean  @default(false)
+  bakeryName        String   @default("Blissburn Products Co.")
+  bakeryAddress     String   @default("Industrial Estate, Zone B, Colombo, Sri Lanka")
+  bakeryPhone       String   @default("+94 11 2345 678")
+  updatedAt         DateTime @updatedAt
+}

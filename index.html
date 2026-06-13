@@ -1,0 +1,1530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blissburn ERP - Baking Happiness Daily</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Material Symbols -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary': 'var(--primary)',
+                        'on-primary': 'var(--on-primary)',
+                        'primary-container': 'var(--primary-container)',
+                        'on-primary-container': 'var(--on-primary-container)',
+                        'secondary': 'var(--secondary)',
+                        'on-secondary': 'var(--on-secondary)',
+                        'secondary-container': 'var(--secondary-container)',
+                        'on-secondary-container': 'var(--on-secondary-container)',
+                        'tertiary': 'var(--tertiary)',
+                        'tertiary-container': 'var(--tertiary-container)',
+                        'on-tertiary-container': 'var(--on-tertiary-container)',
+                        'error': 'var(--error)',
+                        'error-container': 'var(--error-container)',
+                        'on-error': 'var(--on-error)',
+                        'surface': 'var(--surface)',
+                        'on-surface': 'var(--on-surface)',
+                        'surface-bright': 'var(--surface-bright)',
+                        'surface-container': 'var(--surface-container)',
+                        'surface-container-high': 'var(--surface-container-high)',
+                        'surface-container-low': 'var(--surface-container-low)',
+                        'surface-container-lowest': 'var(--surface-container-lowest)',
+                        'outline': 'var(--outline)',
+                        'outline-variant': 'var(--outline-variant)',
+                        'on-surface-variant': 'var(--on-surface-variant)',
+                        'inverse-surface': 'var(--inverse-surface)',
+                        'inverse-on-surface': 'var(--inverse-on-surface)',
+                    },
+                    fontFamily: {
+                        'display': ['"Plus Jakarta Sans"', 'sans-serif'],
+                        'body': ['"Work Sans"', 'sans-serif'],
+                    },
+                },
+            },
+        };
+    </script>
+    <!-- Custom Styles (animations, print, spiral, scrollbar) -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="font-body bg-surface text-on-surface min-h-screen overflow-x-hidden dot-grid-bg">
+
+    <!-- ===== SYSTEM BOOT LOG IN OVERLAY ===== -->
+    <div id="systemLoginOverlay" class="fixed inset-0 z-[9999] flex items-center justify-center bg-[#15130e]/85 backdrop-blur-xl transition-all duration-500">
+        <div class="w-96 max-w-full p-8 bg-surface-container rounded-3xl border border-outline-variant/30 shadow-2xl flex flex-col items-center gap-6">
+            <div class="flex flex-col items-center gap-2">
+                <img src="assets/logo.png" alt="BlissBurn Logo" class="h-16 w-auto object-contain logo-blend mb-2 select-none">
+                <h2 class="font-display text-xl font-bold text-on-surface">Sign in to BlissBurn</h2>
+                <p class="text-[11px] text-on-surface-variant text-center">Baking Happiness Daily</p>
+            </div>
+            <form id="systemLoginForm" class="w-full flex flex-col gap-4">
+                <div>
+                    <label for="loginUsername" class="block text-xs font-semibold text-on-surface-variant mb-1.5">Staff Username</label>
+                    <input type="text" id="loginUsername" placeholder="e.g. anura, nisha, sunil" required class="w-full bg-surface-container-lowest border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                </div>
+                <div>
+                    <label for="loginPass" class="block text-xs font-semibold text-on-surface-variant mb-1.5">Password</label>
+                    <input type="password" id="loginPass" placeholder="Enter your password" required class="w-full bg-surface-container-lowest border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                </div>
+                <button type="submit" class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-on-primary rounded-full font-display font-bold text-sm hover:bg-primary/90 transition-colors mt-2">
+                    <span class="material-symbols-outlined text-lg">login</span> Sign In
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Skip to content link for keyboard/screen reader users -->
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[200] focus:px-4 focus:py-2 focus:bg-primary focus:text-on-primary focus:rounded-xl focus:font-semibold focus:text-sm">Skip to main content</a>
+
+    <!-- Decorative Spiral Motif (animated brand swoosh, drawn by js/spiral-bg.js) -->
+    <canvas id="spiralMotifCanvas" class="spiral-motif" width="1000" height="1000" aria-hidden="true"></canvas>
+
+    <!-- ===== SIDEBAR NAVIGATION ===== -->
+    <aside id="appSidebar" class="sidebar-drawer fixed top-0 left-0 h-screen w-72 bg-surface-container-lowest flex flex-col border-r border-outline-variant/30 lg:translate-x-0 z-50" role="navigation" aria-label="Main navigation">
+        
+        <!-- Logo + Close -->
+        <div class="flex items-center justify-between px-6 pt-6 pb-2">
+            <img src="assets/logo.png" alt="BlissBurn Logo" class="logo-blend h-11 w-auto object-contain">
+            <button class="lg:hidden p-2 rounded-full hover:bg-surface-container transition-colors" id="mobileSidebarClose">
+                <span class="material-symbols-outlined text-on-surface-variant">close</span>
+            </button>
+        </div>
+
+        <!-- Role Switcher -->
+        <div class="mx-4 mt-4 mb-2 p-3 bg-surface-container rounded-2xl">
+            <label for="roleSelect" class="flex items-center gap-2 text-xs font-medium text-on-surface-variant mb-2">
+                <span class="material-symbols-outlined text-base">shield_person</span> ACTIVE ROLE
+            </label>
+            <select id="roleSelect" class="w-full bg-surface-container-lowest border border-outline-variant/50 rounded-xl px-3 py-2 text-sm font-medium text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                <option value="admin">Admin / Owner</option>
+                <option value="production">Production Manager</option>
+                <option value="sales">Sales Staff</option>
+                <option value="delivery">Delivery Team</option>
+                <option value="accountant">Accountant</option>
+            </select>
+        </div>
+
+        <!-- Navigation Links -->
+        <nav class="sidebar-nav flex-1 px-3 py-4 flex flex-col gap-1">
+            <a href="#dashboard" class="nav-link active flex items-center gap-3 px-4 py-3 rounded-full text-sm font-medium transition-all" data-view="dashboard">
+                <span class="material-symbols-outlined text-xl">dashboard</span>
+                <span>Dashboard</span>
+            </a>
+            <a href="#pos" class="nav-link flex items-center gap-3 px-4 py-3 rounded-full text-sm font-medium transition-all" data-view="pos">
+                <span class="material-symbols-outlined text-xl">point_of_sale</span>
+                <span>Sell at Counter</span>
+            </a>
+            <a href="#production" class="nav-link flex items-center gap-3 px-4 py-3 rounded-full text-sm font-medium transition-all" data-view="production">
+                <span class="material-symbols-outlined text-xl">cookie</span>
+                <span>Baking</span>
+            </a>
+            <a href="#inventory" class="nav-link flex items-center gap-3 px-4 py-3 rounded-full text-sm font-medium transition-all" data-view="inventory">
+                <span class="material-symbols-outlined text-xl">inventory_2</span>
+                <span>Stock & Ingredients</span>
+            </a>
+            <a href="#b2b" class="nav-link flex items-center gap-3 px-4 py-3 rounded-full text-sm font-medium transition-all" data-view="b2b">
+                <span class="material-symbols-outlined text-xl">local_shipping</span>
+                <span>Business Orders</span>
+            </a>
+            <a href="#accounts" class="nav-link flex items-center gap-3 px-4 py-3 rounded-full text-sm font-medium transition-all" data-view="accounts">
+                <span class="material-symbols-outlined text-xl">account_balance</span>
+                <span>Money & Payments</span>
+            </a>
+            <a href="#settings" class="nav-link flex items-center gap-3 px-4 py-3 rounded-full text-sm font-medium transition-all" data-view="settings">
+                <span class="material-symbols-outlined text-xl">settings</span>
+                <span>Settings</span>
+            </a>
+        </nav>
+
+        <!-- User Profile Footer -->
+        <div class="px-5 py-4 border-t border-outline-variant/30">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center">
+                    <span class="material-symbols-outlined text-on-primary-container text-xl">person</span>
+                </div>
+                <div class="flex flex-col">
+                    <span class="text-sm font-semibold text-on-surface" id="displayUsername">Anura Perera</span>
+                    <span class="text-xs text-on-surface-variant" id="displayRole">Owner / Admin</span>
+                </div>
+            </div>
+            <button class="w-full flex items-center justify-center gap-2 px-3 py-2 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold rounded-xl border border-red-200/50 mt-3 transition-colors" id="logoutBtn">
+                <span class="material-symbols-outlined text-sm">logout</span> Sign Out
+            </button>
+            <p class="text-[10px] text-outline mt-3 tracking-widest uppercase">Baking Happiness Daily</p>
+        </div>
+    </aside>
+
+    <!-- Mobile Sidebar Overlay -->
+    <div class="sidebar-overlay fixed inset-0 bg-on-surface/30 backdrop-blur-sm z-40 lg:hidden" onclick="document.getElementById('appSidebar').classList.remove('active')"></div>
+
+    <!-- ===== MAIN CONTENT ===== -->
+    <main class="lg:pl-72 min-h-screen flex flex-col relative z-10" id="main-content" role="main">
+
+        <!-- Sticky Top Header -->
+        <header class="sticky top-0 z-30 bg-surface-bright/80 backdrop-blur-md border-b border-outline-variant/30">
+            <div class="flex items-center justify-between px-4 md:px-8 py-3">
+                <!-- Left: Mobile toggle + Title -->
+                <div class="flex items-center gap-3">
+                    <button class="lg:hidden p-2 rounded-full hover:bg-surface-container transition-colors" id="mobileSidebarOpen">
+                        <span class="material-symbols-outlined">menu</span>
+                    </button>
+                    <div>
+                        <h2 class="font-display text-lg md:text-xl font-bold text-on-surface" id="currentViewTitle">Dashboard Overview</h2>
+                        <p class="text-xs text-on-surface-variant" id="currentViewSubtitle">Real-time bakery performance metrics</p>
+                    </div>
+                </div>
+
+                <!-- Right: Widgets -->
+                <div class="flex items-center gap-2 md:gap-4">
+                    <!-- Ops Status Widget -->
+                    <div class="hidden md:flex items-center gap-2 px-3 py-2 bg-surface-container rounded-2xl">
+                        <span class="material-symbols-outlined text-lg text-green-600 calendar-widget-icon">event_available</span>
+                        <div class="flex flex-col">
+                            <span class="text-[10px] uppercase tracking-wider text-on-surface-variant font-medium">Ops Status (Mon-Thu)</span>
+                            <span class="text-xs font-semibold text-green-700" id="opsStatusText">Active Ops Day</span>
+                        </div>
+                    </div>
+
+                    <!-- Date Picker Widget (admin only — hidden by auth.js for other roles) -->
+                    <div id="dateSimWidget" class="hidden md:flex items-center gap-2 px-3 py-2 bg-surface-container rounded-2xl">
+                        <span class="material-symbols-outlined text-lg text-primary">schedule</span>
+                        <div class="flex flex-col">
+                            <label for="systemDateSim" class="text-[10px] uppercase tracking-wider text-on-surface-variant font-medium">Simulated System Date</label>
+                            <input type="date" id="systemDateSim" class="text-xs font-semibold text-on-surface bg-transparent border-none p-0 focus:outline-none focus:ring-0 cursor-pointer">
+                        </div>
+                    </div>
+
+                    <!-- Help Button -->
+                    <button class="p-2.5 rounded-full hover:bg-surface-container transition-colors" id="helpBtn" aria-label="How this works" title="How this works">
+                        <span class="material-symbols-outlined text-xl text-on-surface-variant">help</span>
+                    </button>
+
+                    <!-- Dark Mode Toggle -->
+                    <button class="p-2.5 rounded-full hover:bg-surface-container transition-colors" id="themeToggleBtn" aria-label="Toggle dark mode">
+                        <span class="material-symbols-outlined text-xl text-on-surface-variant" id="themeToggleIcon">dark_mode</span>
+                    </button>
+
+                    <!-- Notification Bell -->
+                    <div class="relative">
+                        <button class="p-2.5 rounded-full hover:bg-surface-container transition-colors relative" id="notifBtn">
+                            <span class="material-symbols-outlined text-xl text-on-surface-variant">notifications</span>
+                            <span class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-error text-on-error text-[10px] font-bold rounded-full flex items-center justify-center px-1" id="notifBadge">2</span>
+                        </button>
+
+                        <!-- Notification Drawer -->
+                        <div class="notif-drawer hidden bg-surface-container-lowest rounded-2xl border border-outline-variant/40 shadow-2xl" id="notifDrawer">
+                            <div class="flex items-center justify-between px-4 py-3 border-b border-outline-variant/30">
+                                <h3 class="font-display text-sm font-bold text-on-surface">System Notifications</h3>
+                                <button class="text-xs font-medium text-primary hover:underline" id="clearNotifBtn">Clear All</button>
+                            </div>
+                            <div class="max-h-80 overflow-y-auto" id="notifList">
+                                <!-- Dynamically populated notifications -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Dynamic Module Content Areas -->
+        <div class="viewport-content flex-1 px-4 md:px-8 py-6 max-w-7xl mx-auto w-full">
+
+            <!-- ===== 1. DASHBOARD VIEW ===== -->
+            <section id="view-dashboard" class="viewport-section active">
+                <!-- KPI Cards Grid -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6" id="dashboardKpiGrid">
+                    <!-- Loaded dynamically -->
+                </div>
+
+                <!-- Main Dashboard Analytics -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Left Pane: Charts + Production + Stock -->
+                    <div class="lg:col-span-2 flex flex-col gap-6">
+                        <!-- Revenue Chart Card -->
+                        <div class="bg-surface-container-lowest rounded-2xl border border-outline-variant/50 p-5">
+                            <div class="flex items-center justify-between mb-4">
+                                <div>
+                                    <h3 class="font-display font-bold text-on-surface">Sales & Revenue Analytics</h3>
+                                    <p class="text-xs text-on-surface-variant mt-0.5">Walk-in cash sales vs. business orders on account</p>
+                                </div>
+                                <div class="flex items-center gap-4 text-xs text-on-surface-variant">
+                                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-primary-container"></span> Walk-in</span>
+                                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-tertiary"></span> Business</span>
+                                </div>
+                            </div>
+                            <div class="w-full overflow-x-auto" id="revenueChartContainer">
+                                <svg id="dashboardRevenueChart" class="w-full" viewBox="0 0 600 240" role="img" aria-label="Revenue progression chart showing Retail vs B2B Wholesale sales over time"></svg>
+                            </div>
+                        </div>
+
+                        <!-- 2-col: Production + Stock -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Production Summary -->
+                            <div class="bg-surface-container-lowest rounded-2xl border border-outline-variant/50 p-5">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="font-display font-bold text-on-surface">Today's Production</h3>
+                                    <span class="text-xs font-medium text-primary bg-primary-container/40 px-2.5 py-1 rounded-full">Quota Tracker</span>
+                                </div>
+                                <div class="flex flex-col gap-3" id="dashProductionList">
+                                    <!-- Dynamically inserted -->
+                                </div>
+                            </div>
+
+                            <!-- Stock Health -->
+                            <div class="bg-surface-container-lowest rounded-2xl border border-outline-variant/50 p-5">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="font-display font-bold text-on-surface">Use First & Low Stock</h3>
+                                    <span class="material-symbols-outlined text-error">error</span>
+                                </div>
+                                <div class="flex flex-col gap-3" id="dashStockAlertsList">
+                                    <!-- Dynamically inserted -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Pane: Operational Timeline -->
+                    <div class="lg:col-span-1">
+                        <div class="bg-surface-container-lowest rounded-2xl border border-outline-variant/50 p-5 h-full flex flex-col">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="font-display font-bold text-on-surface">Recent Activity</h3>
+                                <button class="p-1.5 rounded-full hover:bg-surface-container transition-colors" id="refreshTimeline">
+                                    <span class="material-symbols-outlined text-lg text-on-surface-variant">refresh</span>
+                                </button>
+                            </div>
+                            <div class="flex-1 overflow-y-auto max-h-[500px] -mx-2 px-2" id="dashboardTimeline">
+                                <!-- Dynamic activity notifications -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sales Report & Trends -->
+                <div class="bg-surface-container-lowest rounded-2xl border border-outline-variant/50 p-5 mt-6">
+                    <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+                        <div>
+                            <h3 class="font-display font-bold text-on-surface">Sales Report</h3>
+                            <p class="text-xs text-on-surface-variant mt-0.5">Best-sellers and how much each product really earns</p>
+                        </div>
+                        <button class="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium bg-surface-container hover:bg-surface-container-high text-on-surface rounded-full border border-outline-variant/30 transition-colors" id="exportSalesReportBtn">
+                            <span class="material-symbols-outlined text-sm">download</span> Export
+                        </button>
+                    </div>
+
+                    <!-- Today summary strip -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5" id="salesReportSummary">
+                        <!-- filled dynamically -->
+                    </div>
+
+                    <!-- Per-product table -->
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="text-xs text-on-surface-variant uppercase tracking-wider">
+                                <tr>
+                                    <th class="px-3 py-2 text-left font-medium">Product</th>
+                                    <th class="px-3 py-2 text-right font-medium">Units Sold</th>
+                                    <th class="px-3 py-2 text-right font-medium">Revenue</th>
+                                    <th class="px-3 py-2 text-right font-medium">Est. Cost</th>
+                                    <th class="px-3 py-2 text-right font-medium">Est. Profit</th>
+                                </tr>
+                            </thead>
+                            <tbody id="salesReportBody">
+                                <!-- filled dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="text-[11px] text-on-surface-variant mt-3">Cost is estimated from each recipe's ingredient prices. Set ingredient prices under Stock &amp; Ingredients for accurate profit.</p>
+                </div>
+            </section>
+
+            <!-- ===== 2. POINT OF SALE (POS) VIEW ===== -->
+            <section id="view-pos" class="viewport-section">
+                <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 h-full">
+                    <!-- POS Catalog Panel (3/5) -->
+                    <div class="lg:col-span-3 flex flex-col gap-4">
+                        <!-- Catalog Filters -->
+                        <div class="flex flex-col sm:flex-row gap-3">
+                            <div class="flex items-center gap-2 bg-surface-container-lowest border border-outline-variant/50 rounded-xl px-3 py-2.5 flex-1">
+                                <span class="material-symbols-outlined text-on-surface-variant text-lg">search</span>
+                                <input type="text" id="posSearch" placeholder="Search bakery items..." class="bg-transparent border-none text-sm text-on-surface flex-1 focus:outline-none focus:ring-0 placeholder:text-outline">
+                            </div>
+                        </div>
+                        <div class="flex gap-2 flex-wrap" id="posCategoryTabs">
+                            <button class="tab-btn active px-4 py-2 rounded-full text-xs font-medium transition-all bg-primary text-on-primary" data-category="all">All Items</button>
+                            <button class="tab-btn px-4 py-2 rounded-full text-xs font-medium transition-all bg-surface-container text-on-surface-variant hover:bg-surface-container-high" data-category="buns">Buns & Pastries</button>
+                            <button class="tab-btn px-4 py-2 rounded-full text-xs font-medium transition-all bg-surface-container text-on-surface-variant hover:bg-surface-container-high" data-category="bread">Bread & Loaves</button>
+                            <button class="tab-btn px-4 py-2 rounded-full text-xs font-medium transition-all bg-surface-container text-on-surface-variant hover:bg-surface-container-high" data-category="perishables">Ingredients</button>
+                        </div>
+
+                        <!-- Products Grid -->
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 flex-1 content-start" id="posProductsGrid">
+                            <!-- Dynamic products selection -->
+                        </div>
+                    </div>
+
+                    <!-- POS Cart Panel (2/5) -->
+                    <div class="lg:col-span-2 bg-surface-container-lowest rounded-2xl border border-outline-variant/50 flex flex-col h-full">
+                        <!-- Cart Header -->
+                        <div class="flex items-center justify-between px-5 py-4 border-b border-outline-variant/30">
+                            <h3 class="font-display font-bold text-on-surface">Active Checkout Cart</h3>
+                            <button class="flex items-center gap-1.5 text-xs font-medium text-error hover:underline" id="posClearCart">
+                                <span class="material-symbols-outlined text-sm">delete</span> Clear
+                            </button>
+                        </div>
+
+                        <!-- Customer Selector -->
+                        <div class="px-5 py-3 border-b border-outline-variant/20">
+                            <label for="posCustomerSelect" class="flex items-center gap-1.5 text-xs font-medium text-on-surface-variant mb-1.5">
+                                <span class="material-symbols-outlined text-sm">sell</span> Who is buying?
+                            </label>
+                            <select id="posCustomerSelect" class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                                <option value="walkin" data-type="B2C">Walk-in Customer (normal price)</option>
+                                <!-- Dynamic B2B partners loaded here -->
+                            </select>
+                            <div class="hidden mt-2 flex items-center gap-1.5 text-xs font-medium text-primary" id="posWholesaleBadge">
+                                <span class="material-symbols-outlined text-sm">percent</span> Business (wholesale) price applied
+                            </div>
+                        </div>
+
+                        <!-- Cart Items List -->
+                        <div class="flex-1 overflow-y-auto px-5 py-3 max-h-[300px]" id="posCartItemsList">
+                            <div class="flex flex-col items-center justify-center py-10 text-center">
+                                <span class="material-symbols-outlined text-4xl text-outline/40 mb-2">shopping_basket</span>
+                                <p class="text-sm font-medium text-on-surface-variant">Cart is currently empty</p>
+                                <span class="text-xs text-outline">Tap catalog cards to add baked goods</span>
+                            </div>
+                        </div>
+
+                        <!-- Cart Summary -->
+                        <div class="px-5 py-4 border-t border-outline-variant/30 bg-surface-container/30">
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="text-on-surface-variant">Subtotal</span>
+                                <span class="font-medium" id="posSubtotal">LKR 0.00</span>
+                            </div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="text-on-surface-variant">Business discount</span>
+                                <span class="font-medium text-green-700" id="posDiscount">- LKR 0.00</span>
+                            </div>
+                            <div class="flex justify-between items-center text-sm mb-1 mt-1 border-t border-outline-variant/10 pt-1">
+                                <span class="text-on-surface-variant">VAT Selection</span>
+                                <select id="posTaxRate" class="bg-surface-container border border-outline-variant/50 rounded-lg px-2 py-1 text-xs text-on-surface focus:outline-none focus:ring-1 focus:ring-primary">
+                                    <option value="0">0% VAT (No Tax)</option>
+                                    <option value="8" selected>8% VAT (Standard)</option>
+                                    <option value="15">15% VAT (Special)</option>
+                                </select>
+                            </div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="text-on-surface-variant">VAT Tax Amount</span>
+                                <span class="font-medium" id="posTaxAmount">LKR 0.00</span>
+                            </div>
+                            <div class="flex justify-between text-base font-bold mb-4 pt-2 border-t border-outline-variant/30">
+                                <span>Grand Total</span>
+                                <span id="posGrandTotal">LKR 0.00</span>
+                            </div>
+
+                            <!-- Payment Method -->
+                            <p class="text-[10px] uppercase tracking-wider text-on-surface-variant font-medium mb-2">Select Payment Type</p>
+                            <div class="payment-options-grid grid grid-cols-3 gap-2 mb-3">
+                                <button class="pay-opt active flex flex-col items-center gap-1 p-2.5 rounded-xl border-2 border-primary bg-primary-container/20 text-xs font-medium transition-all" data-method="cash">
+                                    <span class="material-symbols-outlined text-lg">payments</span>
+                                    <span>Cash</span>
+                                </button>
+                                <button class="pay-opt flex flex-col items-center gap-1 p-2.5 rounded-xl border-2 border-outline-variant/50 bg-surface-container text-xs font-medium transition-all hover:border-primary/30" data-method="card">
+                                    <span class="material-symbols-outlined text-lg">credit_card</span>
+                                    <span>Card</span>
+                                </button>
+                                <button class="pay-opt disabled flex flex-col items-center gap-1 p-2.5 rounded-xl border-2 border-outline-variant/30 bg-surface-container/50 text-xs font-medium text-outline/60 cursor-not-allowed" id="b2bPayBtn" data-method="credit" disabled>
+                                    <span class="material-symbols-outlined text-lg">handshake</span>
+                                    <span>On Account</span>
+                                </button>
+                            </div>
+                            <p id="b2bCreditInfo" class="text-xs text-on-surface-variant text-center hidden">Max term credit line is applicable</p>
+
+                            <!-- Cash change calculator (visible only for cash payments) -->
+                            <div id="cashTenderBlock" class="hidden mt-2 bg-surface-container/60 border border-outline-variant/40 rounded-xl p-3">
+                                <label for="posTendered" class="block text-[10px] uppercase tracking-wider text-on-surface-variant font-medium mb-1.5">Amount Tendered (Cash)</label>
+                                <input type="number" id="posTendered" min="0" step="10" inputmode="numeric" placeholder="e.g. 1000"
+                                    class="w-full bg-surface-container-lowest border border-outline-variant/50 rounded-xl px-3 py-2.5 text-base font-semibold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                                <div id="posChangeDue" class="hidden mt-2 text-center rounded-xl px-3 py-2.5"></div>
+                            </div>
+
+                            <button class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-on-primary rounded-full font-display font-bold text-sm hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed mt-2" id="posCheckoutBtn" disabled>
+                                <span class="material-symbols-outlined text-lg">check_circle</span> Complete Checkout
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== 3. PRODUCTION MODULE VIEW ===== -->
+            <section id="view-production" class="viewport-section">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Production Log Form -->
+                    <div>
+                        <div class="bg-surface-container-lowest rounded-2xl border border-outline-variant/50 p-5">
+                            <div class="flex items-center justify-between mb-5">
+                                <h3 class="font-display font-bold text-on-surface">Record What You Baked</h3>
+                                <span class="flex items-center gap-1.5 text-xs font-medium text-green-700 bg-green-100 px-2.5 py-1 rounded-full">
+                                    <span class="material-symbols-outlined text-xs">sync</span> Ingredients deducted automatically
+                                </span>
+                            </div>
+                            <form id="productionLogForm" class="flex flex-col gap-4">
+                                <div>
+                                    <label for="prodProductSelect" class="block text-xs font-medium text-on-surface-variant mb-1.5">What did you bake?</label>
+                                    <select id="prodProductSelect" class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container" required>
+                                        <!-- Dynamic product options loaded here -->
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label for="prodQuantity" class="block text-xs font-medium text-on-surface-variant mb-1.5">How many did you make?</label>
+                                    <div class="flex items-center gap-2">
+                                        <input type="number" id="prodQuantity" min="10" max="1000" step="10" value="100" required class="flex-1 bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                                        <span class="text-xs font-medium text-on-surface-variant bg-surface-container px-3 py-2.5 rounded-xl border border-outline-variant/50">pcs</span>
+                                    </div>
+                                </div>
+
+                                <!-- BOM Preview -->
+                                <div class="pt-2">
+                                    <h4 class="text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-3">Ingredients this will use</h4>
+                                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3" id="prodBOMPreviewList">
+                                        <!-- Dynamic ingredient deductions visual feedback -->
+                                    </div>
+                                    <div id="bomSufficiencyAlert" class="mt-3 flex items-center gap-2 text-xs font-medium text-green-700 bg-green-50 px-3 py-2.5 rounded-xl border border-green-200">
+                                        <span class="material-symbols-outlined text-sm">check_circle</span> You have enough ingredients in stock
+                                    </div>
+                                </div>
+
+                                <button type="submit" class="flex items-center justify-center gap-2 px-4 py-3 bg-primary text-on-primary rounded-full font-display font-bold text-sm hover:bg-primary/90 transition-colors mt-2" id="submitProductionOrder">
+                                    <span class="material-symbols-outlined text-lg">cookie</span> Save Baking & Update Stock
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Batches Table -->
+                    <div>
+                        <div class="bg-surface-container-lowest rounded-2xl border border-outline-variant/50 p-5 h-full flex flex-col justify-between">
+                            <div>
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="font-display font-bold text-on-surface">Baking History</h3>
+                                    <div class="flex items-center gap-2">
+                                        <button class="inline-flex items-center gap-0.5 px-2.5 py-1 text-[11px] font-medium bg-surface-container hover:bg-surface-container-high text-on-surface rounded-full border border-outline-variant/30 transition-colors" id="exportProductionCSVBtn">
+                                            <span class="material-symbols-outlined text-xs">download</span> CSV
+                                        </button>
+                                        <button class="text-xs font-medium text-error hover:underline flex items-center gap-1" id="clearBatchesBtn">
+                                            <span class="material-symbols-outlined text-sm">delete_sweep</span> Clear History
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="flex-1 overflow-auto">
+                                    <table class="w-full text-sm" id="productionBatchesTable">
+                                        <thead class="text-xs text-on-surface-variant uppercase tracking-wider">
+                                            <tr>
+                                                <th class="px-4 py-3 text-left font-medium">Batch ID</th>
+                                                <th class="px-4 py-3 text-left font-medium">Product</th>
+                                                <th class="px-4 py-3 text-left font-medium">Quantity</th>
+                                                <th class="px-4 py-3 text-left font-medium">Baked On</th>
+                                                <th class="px-4 py-3 text-left font-medium">Use By</th>
+                                                <th class="px-4 py-3 text-left font-medium">Freshness</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="productionBatchesBody">
+                                            <!-- Dynamically generated rows -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div id="productionPaginationContainer"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== 4. INVENTORY & FIFO VIEW ===== -->
+            <section id="view-inventory" class="viewport-section">
+                <div class="flex flex-col gap-6">
+                    <!-- Sub Tabs -->
+                    <div class="section-tabs flex gap-2 flex-wrap">
+                        <button class="sub-tab-btn active px-5 py-2.5 rounded-full text-xs font-semibold transition-all bg-primary text-on-primary" data-inventory-sub="stock">Ingredient Stock</button>
+                        <button class="sub-tab-btn px-5 py-2.5 rounded-full text-xs font-semibold transition-all bg-surface-container text-on-surface-variant hover:bg-surface-container-high" data-inventory-sub="bom">Recipes</button>
+                        <button class="sub-tab-btn px-5 py-2.5 rounded-full text-xs font-semibold transition-all bg-surface-container text-on-surface-variant hover:bg-surface-container-high" data-inventory-sub="fifo">Fresh-Stock Deliveries</button>
+                    </div>
+
+                     <!-- SUBVIEW A: STOCK LEDGER -->
+                    <div id="inventory-stock" class="inventory-subview-section active">
+                        <div class="bg-surface-container-lowest rounded-2xl border border-outline-variant/50 p-5">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="font-display font-bold text-on-surface">Ingredients in Stock</h3>
+                                <div class="flex items-center gap-2">
+                                    <div class="relative w-40">
+                                        <span class="material-symbols-outlined text-sm text-on-surface-variant absolute left-2.5 top-1/2 -translate-y-1/2 select-none">search</span>
+                                        <input type="text" id="inventoryStockSearch" placeholder="Search ingredients..." class="w-full bg-surface-container border border-outline-variant/50 rounded-full pl-8 pr-3 py-1 text-xs text-on-surface focus:outline-none focus:ring-1 focus:ring-primary-container">
+                                    </div>
+                                    <button class="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium bg-surface-container hover:bg-surface-container-high text-on-surface rounded-full border border-outline-variant/30 transition-colors" id="exportStockCSVBtn">
+                                        <span class="material-symbols-outlined text-sm">download</span> Export
+                                    </button>
+                                    <button class="inline-flex items-center gap-1.5 px-3 py-1 bg-secondary text-on-secondary rounded-full text-xs font-medium hover:bg-secondary/90 transition-colors" id="addIngredientBtn">
+                                        <span class="material-symbols-outlined text-sm">add_circle</span> Add New Ingredient
+                                    </button>
+                                    <button class="inline-flex items-center gap-1.5 px-3 py-1 bg-primary text-on-primary rounded-full text-xs font-medium hover:bg-primary/90 transition-colors" id="replenishStockBtn">
+                                        <span class="material-symbols-outlined text-sm">add_circle</span> Add Stock Delivery
+                                    </button>
+                                    <button class="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-700 hover:bg-amber-800 text-white rounded-full text-xs font-medium transition-colors" id="adjustStockBtn">
+                                        <span class="material-symbols-outlined text-sm">tune</span> Adjust Stock
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm" id="inventoryStockTable">
+                                    <thead class="text-xs text-on-surface-variant uppercase tracking-wider">
+                                        <tr>
+                                            <th class="px-4 py-3 text-left font-medium">
+                                                <button class="inline-flex items-center gap-1 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded px-1" onclick="window.toggleStockSort('code')" aria-label="Sort by Ingredient Code">
+                                                    Ingredient Code <span id="sort-icon-stock-code"></span>
+                                                </button>
+                                            </th>
+                                            <th class="px-4 py-3 text-left font-medium">
+                                                <button class="inline-flex items-center gap-1 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded px-1" onclick="window.toggleStockSort('name')" aria-label="Sort by Ingredient Name">
+                                                    Ingredient Name <span id="sort-icon-stock-name"></span>
+                                                </button>
+                                            </th>
+                                            <th class="px-4 py-3 text-left font-medium">
+                                                <button class="inline-flex items-center gap-1 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded px-1" onclick="window.toggleStockSort('stock')" aria-label="Sort by Stock Level">
+                                                    Stock Level <span id="sort-icon-stock-stock"></span>
+                                                </button>
+                                            </th>
+                                            <th class="px-4 py-3 text-left font-medium">
+                                                <button class="inline-flex items-center gap-1 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded px-1" onclick="window.toggleStockSort('threshold')" aria-label="Sort by Threshold Limit">
+                                                    Threshold Limit <span id="sort-icon-stock-threshold"></span>
+                                                </button>
+                                            </th>
+                                            <th class="px-4 py-3 text-left font-medium">Unit</th>
+                                            <th class="px-4 py-3 text-left font-medium">Fresh Deliveries</th>
+                                            <th class="px-4 py-3 text-left font-medium">Status</th>
+                                            <th class="px-4 py-3 text-right font-medium">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="inventoryStockBody">
+                                        <!-- Dynamically loaded ingredients -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div id="stockPaginationContainer"></div>
+                        </div>
+                    </div>
+
+                    <!-- SUBVIEW B: BOM RECIPES -->
+                    <div id="inventory-bom" class="inventory-subview-section">
+                        <div class="bg-surface-container-lowest rounded-2xl border border-outline-variant/50 p-5">
+                            <div class="flex items-center justify-between mb-4">
+                                <div>
+                                    <h3 class="font-display font-bold text-on-surface">Recipes</h3>
+                                    <p class="text-xs text-on-surface-variant mt-0.5">How much of each ingredient goes into one of each product</p>
+                                </div>
+                                <button class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-on-primary rounded-full text-xs font-medium hover:bg-primary/90 transition-colors" id="addProductBtn">
+                                    <span class="material-symbols-outlined text-sm">add_circle</span> Create New Product
+                                </button>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" id="inventoryRecipeGrid">
+                                <!-- Loaded dynamically -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SUBVIEW C: FIFO QUEUE -->
+                    <div id="inventory-fifo" class="inventory-subview-section">
+                        <div class="bg-surface-container-lowest rounded-2xl border border-outline-variant/50 p-5">
+                            <div class="flex items-center justify-between mb-4">
+                                <div>
+                                    <h3 class="font-display font-bold text-on-surface">Fresh-Stock Deliveries</h3>
+                                    <p class="text-xs text-on-surface-variant mt-0.5">Perishable ingredient deliveries — always use the oldest one first.</p>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <div class="relative w-40">
+                                        <span class="material-symbols-outlined text-sm text-on-surface-variant absolute left-2.5 top-1/2 -translate-y-1/2 select-none">search</span>
+                                        <input type="text" id="inventoryFifoSearch" placeholder="Search FIFO..." class="w-full bg-surface-container border border-outline-variant/50 rounded-full pl-8 pr-3 py-1 text-xs text-on-surface focus:outline-none focus:ring-1 focus:ring-primary-container">
+                                    </div>
+                                    <button class="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium bg-surface-container hover:bg-surface-container-high text-on-surface rounded-full border border-outline-variant/30 transition-colors" id="exportFifoCSVBtn">
+                                        <span class="material-symbols-outlined text-sm">download</span> Export
+                                    </button>
+                                    <span class="flex items-center gap-1.5 text-xs font-medium text-amber-700 bg-amber-100 px-2.5 py-1 rounded-full">
+                                        <span class="material-symbols-outlined text-xs">history</span> Use Oldest First
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm">
+                                    <thead class="text-xs text-on-surface-variant uppercase tracking-wider">
+                                        <tr>
+                                            <th class="px-4 py-3 text-left font-medium">Ingredient Code</th>
+                                            <th class="px-4 py-3 text-left font-medium">Ingredient Name</th>
+                                            <th class="px-4 py-3 text-left font-medium">Delivery Ref</th>
+                                            <th class="px-4 py-3 text-left font-medium">Received Date</th>
+                                            <th class="px-4 py-3 text-left font-medium">Quantity Received</th>
+                                            <th class="px-4 py-3 text-left font-medium">Remaining</th>
+                                            <th class="px-4 py-3 text-left font-medium">Days Until Expiry</th>
+                                            <th class="px-4 py-3 text-left font-medium">Freshness</th>
+                                            <th class="px-4 py-3 text-left font-medium">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="fifoQueueTableBody">
+                                        <!-- FIFO queues inserted here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div id="fifoPaginationContainer"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== 5. B2B DISTRIBUTION VIEW ===== -->
+            <section id="view-b2b" class="viewport-section">
+                <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                    <!-- Partners Panel (2/5) -->
+                    <div class="lg:col-span-2">
+                        <div class="bg-surface-container-lowest rounded-2xl border border-outline-variant/50 p-5">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="font-display font-bold text-on-surface">Business Customers</h3>
+                                <button class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-on-primary rounded-full text-xs font-medium hover:bg-primary/90 transition-colors" id="addNewB2BPartnerBtn">
+                                    <span class="material-symbols-outlined text-sm">person_add</span> Add Customer
+                                </button>
+                            </div>
+                            <div class="flex flex-col gap-3" id="b2bPartnersList">
+                                <!-- Loaded dynamically -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Invoices Panel (3/5) -->
+                    <div class="lg:col-span-3">
+                        <div class="bg-surface-container-lowest rounded-2xl border border-outline-variant/50 p-5 h-full flex flex-col">
+                            <div class="flex items-center justify-between mb-4">
+                                <div>
+                                    <h3 class="font-display font-bold text-on-surface">Business Invoices</h3>
+                                    <p class="text-xs text-on-surface-variant mt-0.5">Orders sold on account, due in 30 or 60 days</p>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <div class="relative w-40">
+                                        <span class="material-symbols-outlined text-sm text-on-surface-variant absolute left-2.5 top-1/2 -translate-y-1/2 select-none">search</span>
+                                        <input type="text" id="b2bInvoiceSearch" placeholder="Search invoices..." class="w-full bg-surface-container border border-outline-variant/50 rounded-full pl-8 pr-3 py-1 text-xs text-on-surface focus:outline-none focus:ring-1 focus:ring-primary-container">
+                                    </div>
+                                    <button class="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium bg-surface-container hover:bg-surface-container-high text-on-surface rounded-full border border-outline-variant/30 transition-colors" id="exportB2BInvoicesCSVBtn">
+                                        <span class="material-symbols-outlined text-sm">download</span> Export
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="flex-1 overflow-auto max-h-[550px]">
+                                <table class="w-full text-sm">
+                                    <thead class="text-xs text-on-surface-variant uppercase tracking-wider sticky top-0 bg-surface-container-lowest">
+                                        <tr>
+                                            <th class="px-4 py-3 text-left font-medium">Invoice No.</th>
+                                            <th class="px-4 py-3 text-left font-medium">Business Customer</th>
+                                            <th class="px-4 py-3 text-left font-medium">Order Date</th>
+                                            <th class="px-4 py-3 text-left font-medium">Due Date</th>
+                                            <th class="px-4 py-3 text-left font-medium">Invoice Total</th>
+                                            <th class="px-4 py-3 text-left font-medium">Unpaid Amount</th>
+                                            <th class="px-4 py-3 text-left font-medium">Status</th>
+                                            <th class="px-4 py-3 text-left font-medium">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="b2bInvoiceTableBody">
+                                        <!-- Invoices list rows -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div id="b2bInvoicePaginationContainer"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== 6. ACCOUNTS & LEDGER VIEW ===== -->
+            <section id="view-accounts" class="viewport-section">
+                <div class="flex flex-col gap-6">
+                    <!-- Aging Summary Card -->
+                    <div class="bg-surface-container-lowest rounded-2xl border border-outline-variant/50 p-5">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 class="font-display font-bold text-on-surface">Money Owed to You — by Age</h3>
+                                <p class="text-xs text-on-surface-variant mt-0.5">How long business customers have owed you</p>
+                            </div>
+                        </div>
+                        <!-- Aging Bar -->
+                        <div class="ageing-bracket-bar mb-4">
+                            <div class="bracket-fill b-0-30" style="width: 50%" title="0-30 Days">50%</div>
+                            <div class="bracket-fill b-31-60" style="width: 30%" title="31-60 Days">30%</div>
+                            <div class="bracket-fill b-60-plus" style="width: 20%" title="60+ Days Overdue">20%</div>
+                        </div>
+                        <!-- Legends -->
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div class="flex items-center gap-2 text-sm">
+                                <span class="w-3 h-3 rounded-sm bg-green-500 flex-shrink-0"></span>
+                                <strong class="text-on-surface-variant">0 - 30 Days:</strong>
+                                <span class="font-semibold text-on-surface" id="ageing0_30">LKR 0.00</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <span class="w-3 h-3 rounded-sm bg-amber-500 flex-shrink-0"></span>
+                                <strong class="text-on-surface-variant">31 - 60 Days:</strong>
+                                <span class="font-semibold text-on-surface" id="ageing31_60">LKR 0.00</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <span class="w-3 h-3 rounded-sm bg-red-500 flex-shrink-0"></span>
+                                <strong class="text-on-surface-variant">60+ Days (Overdue):</strong>
+                                <span class="font-semibold text-on-surface" id="ageing60_plus">LKR 0.00</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2-col: Outstanding Ledgers + Transactions -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Accounts Receivable -->
+                        <div class="bg-surface-container-lowest rounded-2xl border border-outline-variant/50 p-5 flex flex-col justify-between">
+                            <div>
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="font-display font-bold text-on-surface text-sm md:text-base">Who Owes You Money</h3>
+                                    <div class="flex items-center gap-1.5">
+                                        <div class="relative w-36">
+                                            <span class="material-symbols-outlined text-xs text-on-surface-variant absolute left-2 top-1/2 -translate-y-1/2 select-none">search</span>
+                                            <input type="text" id="accountsReceivableSearch" placeholder="Search..." class="w-full bg-surface-container border border-outline-variant/50 rounded-full pl-7 pr-2.5 py-1 text-[11px] text-on-surface focus:outline-none focus:ring-1 focus:ring-primary-container">
+                                        </div>
+                                        <button class="inline-flex items-center gap-0.5 px-2.5 py-1 text-[11px] font-medium bg-surface-container hover:bg-surface-container-high text-on-surface rounded-full border border-outline-variant/30 transition-colors" id="exportReceivablesCSVBtn">
+                                            <span class="material-symbols-outlined text-xs">download</span> Export
+                                        </button>
+                                        <button class="inline-flex items-center gap-0.5 px-2.5 py-1 bg-primary text-on-primary rounded-full text-[11px] font-medium hover:bg-primary/90 transition-colors" id="recordB2BPaymentBtn">
+                                            <span class="material-symbols-outlined text-xs">receipt</span> Pay
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="overflow-auto max-h-[350px]">
+                                    <table class="w-full text-xs md:text-sm">
+                                        <thead class="text-[10px] md:text-xs text-on-surface-variant uppercase tracking-wider sticky top-0 bg-surface-container-lowest">
+                                            <tr>
+                                                <th class="px-3 py-2 text-left font-medium">Business Customer</th>
+                                                <th class="px-3 py-2 text-left font-medium">Total Invoiced</th>
+                                                <th class="px-3 py-2 text-left font-medium">Still Owes</th>
+                                                <th class="px-3 py-2 text-left font-medium">Terms</th>
+                                                <th class="px-3 py-2 text-left font-medium">Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="accountsReceivableBody">
+                                            <!-- Dynamic Client outstanding list -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div id="accountsReceivablePaginationContainer"></div>
+                        </div>
+ 
+                        <!-- Financial Transactions Log -->
+                        <div class="bg-surface-container-lowest rounded-2xl border border-outline-variant/50 p-5 flex flex-col justify-between">
+                            <div>
+                                <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+                                    <div>
+                                        <h3 class="font-display font-bold text-on-surface text-sm md:text-base">Money Log</h3>
+                                        <p class="text-[10px] text-on-surface-variant mt-0.5">deposits & payment captures</p>
+                                    </div>
+                                    <div class="flex items-center gap-1.5 flex-wrap">
+                                        <div class="flex items-center gap-1 bg-surface-container border border-outline-variant/50 rounded-full px-2 py-0.5 text-[10px]">
+                                            <span class="text-on-surface-variant">From:</span>
+                                            <input type="date" id="accountsStartDate" class="bg-transparent border-none p-0 focus:outline-none w-20 text-[10px] text-on-surface cursor-pointer">
+                                            <span class="text-on-surface-variant ml-1">To:</span>
+                                            <input type="date" id="accountsEndDate" class="bg-transparent border-none p-0 focus:outline-none w-20 text-[10px] text-on-surface cursor-pointer">
+                                        </div>
+                                        <div class="relative w-32">
+                                            <span class="material-symbols-outlined text-xs text-on-surface-variant absolute left-2 top-1/2 -translate-y-1/2 select-none">search</span>
+                                            <input type="text" id="accountsTxnSearch" placeholder="Search..." class="w-full bg-surface-container border border-outline-variant/50 rounded-full pl-7 pr-2 py-1 text-[10px] text-on-surface focus:outline-none focus:ring-1 focus:ring-primary-container">
+                                        </div>
+                                        <button class="inline-flex items-center gap-0.5 px-2.5 py-1 text-[11px] font-medium bg-surface-container hover:bg-surface-container-high text-on-surface rounded-full border border-outline-variant/30 transition-colors" id="exportTxnsCSVBtn">
+                                            <span class="material-symbols-outlined text-xs">download</span> CSV
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="overflow-auto max-h-[350px]">
+                                    <table class="w-full text-xs md:text-sm" id="financialTxnTable">
+                                        <thead class="text-[10px] md:text-xs text-on-surface-variant uppercase tracking-wider sticky top-0 bg-surface-container-lowest">
+                                            <tr>
+                                                <th class="px-3 py-2 text-left font-medium">
+                                                    <button class="inline-flex items-center gap-1 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded px-1" onclick="window.toggleTxnSort('id')" aria-label="Sort by Transaction ID">
+                                                        Txn ID <span id="sort-icon-txn-id"></span>
+                                                    </button>
+                                                </th>
+                                                <th class="px-3 py-2 text-left font-medium">
+                                                    <button class="inline-flex items-center gap-1 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded px-1" onclick="window.toggleTxnSort('date')" aria-label="Sort by Date">
+                                                        Date <span id="sort-icon-txn-date"></span>
+                                                    </button>
+                                                </th>
+                                                <th class="px-3 py-2 text-left font-medium">
+                                                    <button class="inline-flex items-center gap-1 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded px-1" onclick="window.toggleTxnSort('description')" aria-label="Sort by Description">
+                                                        Description <span id="sort-icon-txn-description"></span>
+                                                    </button>
+                                                </th>
+                                                <th class="px-3 py-2 text-left font-medium">
+                                                    <button class="inline-flex items-center gap-1 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded px-1" onclick="window.toggleTxnSort('method')" aria-label="Sort by Method">
+                                                        Method <span id="sort-icon-txn-method"></span>
+                                                    </button>
+                                                </th>
+                                                <th class="px-3 py-2 text-left font-medium">
+                                                    <button class="inline-flex items-center gap-1 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded px-1" onclick="window.toggleTxnSort('amount')" aria-label="Sort by Amount">
+                                                        Revenue <span id="sort-icon-txn-amount"></span>
+                                                    </button>
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="financialTxnBody">
+                                            <!-- Dynamic ledger lines -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div id="accountsTransactionsPaginationContainer"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== 7. SETTINGS MODULE VIEW ===== -->
+            <section id="view-settings" class="viewport-section">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Business Configuration Card -->
+                    <div class="bg-surface-container-lowest rounded-2xl border border-outline-variant/50 p-6 flex flex-col gap-4">
+                        <div class="flex items-center gap-2.5 pb-3 border-b border-outline-variant/20">
+                            <span class="material-symbols-outlined text-primary text-2xl">storefront</span>
+                            <h3 class="font-display font-bold text-on-surface">Bakery Profile Configuration</h3>
+                        </div>
+                        <form id="settingsBusinessForm" class="flex flex-col gap-4">
+                            <div>
+                                <label for="settingsBakeryName" class="block text-xs font-semibold text-on-surface-variant mb-1.5">Registered Bakery Name</label>
+                                <input type="text" id="settingsBakeryName" value="Blissburn Products Co." required class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                            </div>
+                            <div>
+                                <label for="settingsBakeryAddress" class="block text-xs font-semibold text-on-surface-variant mb-1.5">Operational Registered Address</label>
+                                <input type="text" id="settingsBakeryAddress" value="Industrial Estate, Zone B, Colombo, Sri Lanka" required class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                            </div>
+                            <div>
+                                <label for="settingsBakeryPhone" class="block text-xs font-semibold text-on-surface-variant mb-1.5">Customer Support Hotline</label>
+                                <input type="text" id="settingsBakeryPhone" value="+94 11 2345 678" required class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                            </div>
+                            <button type="submit" class="flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-on-primary rounded-full font-display font-bold text-xs hover:bg-primary/90 transition-colors mt-2">
+                                <span class="material-symbols-outlined text-base">save</span> Save Profile Configs
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Global System & Database Controls -->
+                    <div class="flex flex-col gap-6">
+                        <!-- Configuration Values -->
+                        <div class="bg-surface-container-lowest rounded-2xl border border-outline-variant/50 p-6 flex flex-col gap-4">
+                            <div class="flex items-center gap-2.5 pb-3 border-b border-outline-variant/20">
+                                <span class="material-symbols-outlined text-primary text-2xl">tune</span>
+                                <h3 class="font-display font-bold text-on-surface">Global System Defaults</h3>
+                            </div>
+                            <div class="flex flex-col gap-4">
+                                <div>
+                                    <label for="settingsDefaultVAT" class="block text-xs font-semibold text-on-surface-variant mb-1.5">Default VAT Rate (%)</label>
+                                    <select id="settingsDefaultVAT" class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                                        <option value="0">0% VAT (No Tax)</option>
+                                        <option value="8" selected>8% VAT (Standard Retail)</option>
+                                        <option value="15">15% VAT (Luxury/Wholesale)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="settingsDefaultCreditLimit" class="block text-xs font-semibold text-on-surface-variant mb-1.5">Default Partner Credit Cap (LKR)</label>
+                                    <input type="number" id="settingsDefaultCreditLimit" min="10000" step="5000" value="100000" class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                                </div>
+                                <label class="flex items-center justify-between gap-3 px-1 py-1 cursor-pointer">
+                                    <span class="flex flex-col">
+                                        <span class="text-xs font-semibold text-on-surface">Auto-print receipt after checkout</span>
+                                        <span class="text-[11px] text-on-surface-variant">Skips the receipt dialog button — printing starts right after each sale</span>
+                                    </span>
+                                    <input type="checkbox" id="settingsAutoPrint" class="w-5 h-5 rounded text-primary focus:ring-primary-container">
+                                </label>
+                                <button id="saveGlobalDefaultsBtn" class="flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-on-primary rounded-full font-display font-bold text-xs hover:bg-primary/90 transition-colors">
+                                    <span class="material-symbols-outlined text-base">settings_suggest</span> Apply Defaults
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- System Reset Card -->
+                        <div class="bg-red-50/20 border border-red-200/50 rounded-2xl p-6 flex flex-col gap-4">
+                            <div class="flex items-center gap-2.5 pb-3 border-b border-red-200/20 text-red-700">
+                                <span class="material-symbols-outlined text-2xl">dangerous</span>
+                                <h3 class="font-display font-bold">Factory System Wipedown</h3>
+                            </div>
+                            <p class="text-xs text-on-surface-variant leading-relaxed">
+                                Warning: This erases all sales, baking records, business customers, and stock levels and resets everything to starting values. This cannot be undone.
+                            </p>
+                            <button id="systemWipedownBtn" class="flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-full font-display font-bold text-xs hover:bg-red-700 transition-colors">
+                                <span class="material-symbols-outlined text-base">restart_alt</span> Format Database & Install Seed
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Staff Management Card (Admin Only) -->
+                <div id="settingsStaffCard" class="bg-surface-container-lowest rounded-2xl border border-outline-variant/50 p-6 flex flex-col gap-4 mt-6 hidden">
+                    <div class="flex items-center justify-between pb-3 border-b border-outline-variant/20 flex-wrap gap-2">
+                        <div class="flex items-center gap-2.5">
+                            <span class="material-symbols-outlined text-primary text-2xl">badge</span>
+                            <div>
+                                <h3 class="font-display font-bold text-on-surface">Staff Access & Credentials Directory</h3>
+                                <p class="text-[10px] text-on-surface-variant">Manage unique employee passwords and platform access roles</p>
+                            </div>
+                        </div>
+                        <button id="addStaffBtn" class="inline-flex items-center gap-1.5 px-3 py-1 bg-primary text-on-primary hover:bg-primary/90 rounded-full text-xs font-semibold transition-colors">
+                            <span class="material-symbols-outlined text-sm">person_add</span> Register New Staff
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="text-xs text-on-surface-variant uppercase tracking-wider">
+                                <tr>
+                                    <th class="px-4 py-3 text-left font-medium">Employee Name</th>
+                                    <th class="px-4 py-3 text-left font-medium">Username</th>
+                                    <th class="px-4 py-3 text-left font-medium">Access Role</th>
+                                    <th class="px-4 py-3 text-left font-medium">Passkey</th>
+                                    <th class="px-4 py-3 text-right font-medium">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="settingsStaffBody">
+                                <!-- Dynamic staff accounts loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- ===== DIALOG: RECEIPT ===== -->
+    <dialog id="receiptDialog" class="print-target">
+        <div class="p-6">
+            <div class="text-center flex flex-col items-center gap-1 mb-4">
+                <img src="assets/logo.png" class="logo-blend h-12 w-auto object-contain mb-2" alt="BlissBurn Logo">
+                <p class="text-xs text-on-surface-variant">Bakery Products Manufacturing & Distribution</p>
+                <p class="text-xs text-on-surface-variant -mt-0.5">Industrial Zone, Sri Lanka</p>
+            </div>
+            <hr class="border-outline-variant/40 my-3">
+            <div class="text-xs space-y-1 mb-3">
+                <p><strong>Receipt No:</strong> <span id="rNum">B2C-1001</span></p>
+                <p><strong>Date:</strong> <span id="rDate">2026-05-26</span></p>
+                <p><strong>Operator:</strong> <span id="rOperator">Retail Sales</span></p>
+                <p><strong>Customer:</strong> <span id="rCustomer">Walk-in Cash Guest</span></p>
+            </div>
+            <hr class="border-outline-variant/40 my-3">
+            <table class="w-full text-xs">
+                <thead>
+                    <tr class="border-b border-outline-variant/40">
+                        <th class="text-left py-1.5 font-medium">Item</th>
+                        <th class="text-center py-1.5 font-medium">Qty</th>
+                        <th class="text-right py-1.5 font-medium">Price</th>
+                        <th class="text-right py-1.5 font-medium">Total</th>
+                    </tr>
+                </thead>
+                <tbody id="receiptItemsBody">
+                    <!-- Dynamic cart items rows -->
+                </tbody>
+            </table>
+            <hr class="border-outline-variant/40 my-3">
+            <div class="space-y-1 text-sm">
+                <div class="flex justify-between"><span>Subtotal:</span><span id="rSub">LKR 0.00</span></div>
+                <div class="flex justify-between text-green-700"><span>B2B Discount:</span><span id="rDisc">- LKR 0.00</span></div>
+                <div class="flex justify-between text-on-surface-variant text-xs"><span>VAT Tax Amount:</span><span id="rTax">LKR 0.00</span></div>
+                <div class="flex justify-between font-bold text-base pt-1 border-t border-outline-variant/40"><span>Grand Total:</span><span id="rTotal">LKR 0.00</span></div>
+                <div class="flex justify-between text-xs text-on-surface-variant"><span>Payment Mode:</span><span id="rMode">Cash Payment</span></div>
+                <div class="flex justify-between text-xs text-on-surface-variant hidden" id="rTenderedRow"><span>Cash Tendered:</span><span id="rTendered">LKR 0.00</span></div>
+                <div class="flex justify-between text-sm font-bold text-green-700 hidden" id="rChangeRow"><span>Change Due:</span><span id="rChange">LKR 0.00</span></div>
+            </div>
+            <hr class="border-outline-variant/40 my-3">
+            <div class="text-center text-xs">
+                <p class="font-bold">Baking Happiness Daily!</p>
+                <p class="text-on-surface-variant">Thank you for your patronage</p>
+                <p class="text-on-surface-variant">Software: Blissburn Digital Management</p>
+            </div>
+            <div class="flex gap-3 mt-5">
+                <button class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-on-primary rounded-full text-sm font-medium hover:bg-primary/90 transition-colors" onclick="(window.printWithAnimation || window.print)('receipt')">
+                    <span class="material-symbols-outlined text-sm">print</span> Print Receipt
+                </button>
+                <button class="flex-1 px-4 py-2.5 bg-surface-container text-on-surface rounded-full text-sm font-medium hover:bg-surface-container-high transition-colors" id="closeReceiptDialog">Dismiss</button>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- ===== DIALOG: INVOICE VIEW ===== -->
+    <dialog class="dialog-wide print-target" id="invoiceDialog">
+        <div class="p-6">
+            <div class="flex justify-between items-center pb-4 mb-4 border-b-2 border-outline-variant/40">
+                <img src="assets/logo.png" class="logo-blend h-14 w-auto object-contain" alt="BlissBurn Logo">
+                <div class="text-right">
+                    <h2 class="font-display text-2xl font-bold text-on-surface">INVOICE</h2>
+                    <p class="text-sm font-semibold text-primary" id="invRefNum">INV-2026-0001</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-4 mb-5 text-xs">
+                <div>
+                    <h4 class="font-semibold text-on-surface-variant uppercase tracking-wider mb-2">Company Details</h4>
+                    <p class="font-bold text-on-surface">Blissburn Products Co.</p>
+                    <p class="text-on-surface-variant">Industrial Estate, Zone B</p>
+                    <p class="text-on-surface-variant">Colombo, Sri Lanka</p>
+                    <p class="text-on-surface-variant">Tel: +94 11 2345 678</p>
+                </div>
+                <div>
+                    <h4 class="font-semibold text-on-surface-variant uppercase tracking-wider mb-2">Billed Partner (B2B)</h4>
+                    <p class="font-bold text-on-surface" id="invClientName">Cargills Food City</p>
+                    <p class="text-on-surface-variant" id="invClientAddress">No. 40, York Street</p>
+                    <p class="text-on-surface-variant">Colombo 01, Sri Lanka</p>
+                    <p class="text-on-surface-variant">Credit Terms: <span class="font-bold text-on-surface" id="invClientTerms">30 Days Credit</span></p>
+                </div>
+                <div>
+                    <h4 class="font-semibold text-on-surface-variant uppercase tracking-wider mb-2">Invoice Details</h4>
+                    <p><strong>Issue Date:</strong> <span id="invDateIssued">2026-05-26</span></p>
+                    <p><strong>Due Date:</strong> <span class="text-amber-700 font-bold" id="invDateDue">2026-06-25</span></p>
+                    <p><strong>Ledger Status:</strong> <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-800" id="invLedgerStatus">Unpaid Ledger</span></p>
+                </div>
+            </div>
+
+            <table class="w-full text-xs mb-4">
+                <thead>
+                    <tr class="bg-surface-container">
+                        <th class="px-3 py-2 text-left font-medium rounded-l-lg">Baked Item Details</th>
+                        <th class="px-3 py-2 text-center font-medium">Quantity</th>
+                        <th class="px-3 py-2 text-right font-medium">B2C Retail Rate</th>
+                        <th class="px-3 py-2 text-right font-medium">Business Rate</th>
+                        <th class="px-3 py-2 text-right font-medium rounded-r-lg">Total Invoice Price</th>
+                    </tr>
+                </thead>
+                <tbody id="invoiceItemsListBody">
+                    <!-- Dynamic B2B invoice items -->
+                </tbody>
+            </table>
+
+            <div class="flex justify-end mb-4">
+                <div class="w-64 space-y-1 text-xs">
+                    <div class="flex justify-between"><span class="text-on-surface-variant">Original Retail Val:</span><span id="invRetailVal">LKR 0.00</span></div>
+                    <div class="flex justify-between text-green-700"><span>Wholesale Partner discount:</span><span id="invWholesaleDisc">- LKR 0.00</span></div>
+                    <div class="flex justify-between text-on-surface-variant"><span>VAT Tax Value:</span><span id="invTaxVal">LKR 0.00</span></div>
+                    <div class="flex justify-between text-sm font-bold pt-1 border-t border-outline-variant/40"><span>Invoice Total Due:</span><span id="invTotalDue">LKR 0.00</span></div>
+                </div>
+            </div>
+
+            <div class="bg-surface-container/50 rounded-xl p-3 mb-5 text-xs">
+                <p class="font-bold text-on-surface mb-1">Payment Information:</p>
+                <p class="text-on-surface-variant">Bank: Commercial Bank of Ceylon PLC | Account: 1000987654 | Branch: Head Office</p>
+                <p class="text-on-surface-variant">Note: Subject to 30-day or 60-day credit terms. Late fees accrue interest charges after due date.</p>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-3">
+                <button class="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-primary text-on-primary rounded-full text-xs font-semibold hover:bg-primary/90 transition-colors" onclick="(window.printWithAnimation || window.print)('invoice')">
+                    <span class="material-symbols-outlined text-sm">print</span> Print Invoice
+                </button>
+                <button class="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-700 text-white rounded-full text-xs font-semibold hover:bg-green-800 transition-colors hidden" id="refundInvoiceBtn">
+                    <span class="material-symbols-outlined text-xs">assignment_return</span> Refund / Return
+                </button>
+                <button class="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-full text-xs font-semibold hover:bg-red-700 transition-colors hidden" id="voidInvoiceBtn">
+                    <span class="material-symbols-outlined text-xs">cancel</span> Void / Cancel
+                </button>
+                <button class="px-5 py-2 bg-surface-container text-on-surface rounded-full text-xs font-semibold hover:bg-surface-container-high transition-colors" id="closeInvoiceDialog">Dismiss</button>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- ===== DIALOG: ADD B2B PARTNER ===== -->
+    <dialog id="addB2BPartnerDialog">
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-5">
+                <h3 class="font-display font-bold text-on-surface">Add Business Customer</h3>
+                <button class="p-1.5 rounded-full hover:bg-surface-container transition-colors" id="closeAddB2BDialog">
+                    <span class="material-symbols-outlined text-on-surface-variant">close</span>
+                </button>
+            </div>
+            <form id="addB2BPartnerForm" class="flex flex-col gap-4">
+                <div>
+                    <label for="b2bName" class="block text-xs font-medium text-on-surface-variant mb-1.5">Partner Company Name</label>
+                    <input type="text" id="b2bName" placeholder="e.g. Keells Super" required class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                </div>
+                <div>
+                    <label for="b2bAddress" class="block text-xs font-medium text-on-surface-variant mb-1.5">Registered Address</label>
+                    <input type="text" id="b2bAddress" placeholder="No 12, Main Street, Colombo" required class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                </div>
+                <div>
+                    <label for="b2bTerms" class="block text-xs font-medium text-on-surface-variant mb-1.5">Credit Terms</label>
+                    <select id="b2bTerms" class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                        <option value="30">30-day Term Credit</option>
+                        <option value="60">60-day Term Credit</option>
+                        <option value="0">Cash On Delivery (0 Days)</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="b2bCreditLimit" class="block text-xs font-medium text-on-surface-variant mb-1.5">Credit Limit (LKR)</label>
+                    <input type="number" id="b2bCreditLimit" min="10000" step="5000" value="100000" required class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                </div>
+                <button type="submit" class="flex items-center justify-center gap-2 px-4 py-3 bg-primary text-on-primary rounded-full font-display font-bold text-sm hover:bg-primary/90 transition-colors mt-2">
+                    Add Partner & Establish Credit Line
+                </button>
+            </form>
+        </div>
+    </dialog>
+
+    <!-- ===== DIALOG: CAPTURE PAYMENT ===== -->
+    <dialog id="capturePaymentDialog">
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-5">
+                <h3 class="font-display font-bold text-on-surface">Record B2B Accounts Receivable Payment</h3>
+                <button class="p-1.5 rounded-full hover:bg-surface-container transition-colors" id="closeCapturePayDialog">
+                    <span class="material-symbols-outlined text-on-surface-variant">close</span>
+                </button>
+            </div>
+            <form id="capturePaymentForm" class="flex flex-col gap-4">
+                <div>
+                    <label for="payCustomerSelect" class="block text-xs font-medium text-on-surface-variant mb-1.5">Select B2B Partner</label>
+                    <select id="payCustomerSelect" class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container" required>
+                        <!-- Dynamic select of customers with active outstandings -->
+                    </select>
+                </div>
+                <div>
+                    <label for="payInvoiceSelect" class="block text-xs font-medium text-on-surface-variant mb-1.5">Select Invoice</label>
+                    <select id="payInvoiceSelect" class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container" required>
+                        <!-- Invoices dynamic loading -->
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-on-surface-variant mb-1.5">Outstanding Balance</label>
+                    <div class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm font-semibold text-red-700" id="payInvoiceOutstanding">LKR 0.00</div>
+                </div>
+                <div>
+                    <label for="payAmount" class="block text-xs font-medium text-on-surface-variant mb-1.5">Payment Amount Received (LKR)</label>
+                    <input type="number" id="payAmount" min="1" step="100" required class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                </div>
+                <button type="submit" class="flex items-center justify-center gap-2 px-4 py-3 bg-primary text-on-primary rounded-full font-display font-bold text-sm hover:bg-primary/90 transition-colors mt-2">
+                    <span class="material-symbols-outlined text-lg">check_circle</span> Process & Post Ledger Entry
+                </button>
+            </form>
+        </div>
+    </dialog>
+
+    <!-- ===== DIALOG: REGISTER/EDIT STAFF MEMBER ===== -->
+    <dialog id="addStaffDialog">
+        <div class="p-6 w-96 max-w-full">
+            <div class="flex items-center justify-between mb-5">
+                <h3 class="font-display font-bold text-on-surface" id="staffDialogTitle">Register New Staff Account</h3>
+                <button class="p-1.5 rounded-full hover:bg-surface-container transition-colors" id="closeAddStaffDialog">
+                    <span class="material-symbols-outlined text-on-surface-variant">close</span>
+                </button>
+            </div>
+            <form id="addStaffForm" class="flex flex-col gap-4">
+                <input type="hidden" id="editStaffId" value="">
+                <div>
+                    <label for="staffName" class="block text-xs font-medium text-on-surface-variant mb-1.5">Full Employee Name</label>
+                    <input type="text" id="staffName" placeholder="e.g. Dilshan Perera" required class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                </div>
+                <div>
+                    <label for="staffUsername" class="block text-xs font-medium text-on-surface-variant mb-1.5">Portal Username</label>
+                    <input type="text" id="staffUsername" placeholder="e.g. dilshan" required class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                </div>
+                <div>
+                    <label for="staffRole" class="block text-xs font-medium text-on-surface-variant mb-1.5">Platform Access Role</label>
+                    <select id="staffRole" class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm font-semibold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                        <option value="admin">Owner / Admin</option>
+                        <option value="production">Production Manager</option>
+                        <option value="sales">Sales Counter Staff</option>
+                        <option value="delivery">Delivery Team</option>
+                        <option value="accountant">Accountant / Auditor</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="staffPasskey" class="block text-xs font-medium text-on-surface-variant mb-1.5">Password</label>
+                    <input type="password" id="staffPasskey" placeholder="Set a login password" required class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                </div>
+                <button type="submit" class="flex items-center justify-center gap-2 px-4 py-3 bg-primary text-on-primary rounded-full font-display font-bold text-sm hover:bg-primary/90 transition-colors mt-2" id="submitStaffBtn">
+                    <span class="material-symbols-outlined text-lg">person_add</span> Register Staff
+                </button>
+            </form>
+        </div>
+    </dialog>
+
+    <!-- ===== DIALOG: REGISTER/EDIT INGREDIENT ===== -->
+    <dialog id="addIngredientDialog">
+        <div class="p-6 w-96 max-w-full">
+            <div class="flex items-center justify-between mb-5">
+                <h3 class="font-display font-bold text-on-surface" id="ingredientDialogTitle">Register New Ingredient</h3>
+                <button class="p-1.5 rounded-full hover:bg-surface-container transition-colors" id="closeAddIngredientDialog">
+                    <span class="material-symbols-outlined text-on-surface-variant">close</span>
+                </button>
+            </div>
+            <form id="addIngredientForm" class="flex flex-col gap-4">
+                <input type="hidden" id="editIngredientCode" value="">
+                <div>
+                    <label for="ingCode" class="block text-xs font-medium text-on-surface-variant mb-1.5">Ingredient Code</label>
+                    <input type="text" id="ingCode" placeholder="e.g. sugar" required class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container uppercase">
+                </div>
+                <div>
+                    <label for="ingName" class="block text-xs font-medium text-on-surface-variant mb-1.5">Ingredient Name</label>
+                    <input type="text" id="ingName" placeholder="e.g. Fine Sugar" required class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                </div>
+                <div>
+                    <label for="ingThreshold" class="block text-xs font-medium text-on-surface-variant mb-1.5">Low Stock Threshold Limit (kg/pcs)</label>
+                    <input type="number" id="ingThreshold" min="0" step="0.1" value="5" required class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                </div>
+                <div>
+                    <label for="ingUnitCost" class="block text-xs font-medium text-on-surface-variant mb-1.5">Unit Cost — LKR per kg/pcs (for wastage write-offs)</label>
+                    <input type="number" id="ingUnitCost" min="0" step="10" value="0" class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                </div>
+                <div>
+                    <label for="ingUnit" class="block text-xs font-medium text-on-surface-variant mb-1.5">Measurement Unit</label>
+                    <select id="ingUnit" class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                        <option value="g">Grams / Kilograms (g/kg)</option>
+                        <option value="pcs">Pieces (pcs)</option>
+                        <option value="ml">Milliliters / Liters (ml/L)</option>
+                    </select>
+                </div>
+                <div class="flex items-center gap-2 py-2">
+                    <input type="checkbox" id="ingIsPerishable" class="rounded border-outline-variant/50 text-primary focus:ring-primary-container">
+                    <label for="ingIsPerishable" class="text-xs font-medium text-on-surface-variant select-none">Is Perishable? (Tracks batches via FIFO)</label>
+                </div>
+                <button type="submit" class="flex items-center justify-center gap-2 px-4 py-3 bg-primary text-on-primary rounded-full font-display font-bold text-sm hover:bg-primary/90 transition-colors mt-2" id="submitIngredientBtn">
+                    Register Ingredient
+                </button>
+            </form>
+        </div>
+    </dialog>
+
+    <!-- ===== DIALOG: REPLENISH STOCK ===== -->
+    <dialog id="replenishStockDialog">
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-5">
+                <h3 class="font-display font-bold text-on-surface">Replenish Ingredient Raw Material Stock</h3>
+                <button class="p-1.5 rounded-full hover:bg-surface-container transition-colors" id="closeReplenishDialog">
+                    <span class="material-symbols-outlined text-on-surface-variant">close</span>
+                </button>
+            </div>
+            <form id="replenishForm" class="flex flex-col gap-4">
+                <div>
+                    <label for="repIngredientSelect" class="block text-xs font-medium text-on-surface-variant mb-1.5">Ingredient to Stock</label>
+                    <select id="repIngredientSelect" class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container" required>
+                        <!-- Loaded dynamically -->
+                    </select>
+                </div>
+                <div>
+                    <label for="repQuantity" class="block text-xs font-medium text-on-surface-variant mb-1.5">Quantity to Receive</label>
+                    <div class="flex items-center gap-2">
+                        <input type="number" id="repQuantity" min="1" step="1" required class="flex-1 bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                        <span class="text-xs font-medium text-on-surface-variant bg-surface-container px-3 py-2.5 rounded-xl border border-outline-variant/50" id="repUnitLabel">kg</span>
+                    </div>
+                </div>
+                <div>
+                    <label for="repDate" class="block text-xs font-medium text-on-surface-variant mb-1.5">Receiving Date (FIFO Tracking)</label>
+                    <input type="date" id="repDate" required class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                </div>
+                <div class="hidden items-center gap-2 text-xs font-medium text-amber-700 bg-amber-50 px-3 py-2.5 rounded-xl border border-amber-200" id="fifoPerishableAlert">
+                    <span class="material-symbols-outlined text-sm">warning</span>
+                    Perishable Item! Strictly tracked under FIFO to consume prior to non-ops days.
+                </div>
+                <button type="submit" class="flex items-center justify-center gap-2 px-4 py-3 bg-primary text-on-primary rounded-full font-display font-bold text-sm hover:bg-primary/90 transition-colors mt-2">
+                    <span class="material-symbols-outlined text-lg">inventory</span> Log Stock Intake (Receive Batch)
+                </button>
+            </form>
+        </div>
+    </dialog>
+
+    <!-- ===== DIALOG: ADJUST STOCK ===== -->
+    <dialog id="adjustStockDialog">
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-5">
+                <h3 class="font-display font-bold text-on-surface">Manual Raw Materials Stock Adjustment</h3>
+                <button class="p-1.5 rounded-full hover:bg-surface-container transition-colors" id="closeAdjustStockDialog">
+                    <span class="material-symbols-outlined text-on-surface-variant">close</span>
+                </button>
+            </div>
+            <form id="adjustStockForm" class="flex flex-col gap-4">
+                <div>
+                    <label for="adjIngredientSelect" class="block text-xs font-medium text-on-surface-variant mb-1.5">Ingredient to Adjust</label>
+                    <select id="adjIngredientSelect" class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container" required>
+                        <!-- Loaded dynamically -->
+                    </select>
+                </div>
+                <div>
+                    <label for="adjType" class="block text-xs font-medium text-on-surface-variant mb-1.5">Adjustment Type</label>
+                    <select id="adjType" class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container" required>
+                        <option value="spoilage">Spoilage / Expiry (Deduction)</option>
+                        <option value="theft">Theft / Inventory Shrinkage (Deduction)</option>
+                        <option value="damage">Damage / Spillage (Deduction)</option>
+                        <option value="audit">Auditing Error Discrepancy (Deduction or Addition)</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="adjQuantity" class="block text-xs font-medium text-on-surface-variant mb-1.5">Quantity to Adjust (in KG or PCS — use negative values for deductions)</label>
+                    <div class="flex items-center gap-2">
+                        <input type="number" id="adjQuantity" step="0.1" required class="flex-1 bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container" placeholder="e.g. -2.5">
+                        <span class="text-xs font-medium text-on-surface-variant bg-surface-container px-3 py-2.5 rounded-xl border border-outline-variant/50" id="adjUnitLabel">kg</span>
+                    </div>
+                </div>
+                <div>
+                    <label for="adjNotes" class="block text-xs font-medium text-on-surface-variant mb-1.5">Adjustment Audit Notes / Reasons</label>
+                    <input type="text" id="adjNotes" required placeholder="e.g. Discarded 2.5kg of expired butter" class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                </div>
+                <button type="submit" class="flex items-center justify-center gap-2 px-4 py-3 bg-primary text-on-primary rounded-full font-display font-bold text-sm hover:bg-primary/90 transition-colors mt-2">
+                    <span class="material-symbols-outlined text-lg">tune</span> Post Adjustment & Log Write-Off
+                </button>
+            </form>
+        </div>
+    </dialog>
+
+    <!-- ===== DIALOG: ADD PRODUCT ===== -->
+    <dialog id="addProductDialog">
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-5">
+                <h3 class="font-display font-bold text-on-surface">Add New Product & BOM Card</h3>
+                <button class="p-1.5 rounded-full hover:bg-surface-container transition-colors" id="closeAddProductDialog">
+                    <span class="material-symbols-outlined text-on-surface-variant">close</span>
+                </button>
+            </div>
+            <form id="addProductForm" class="flex flex-col gap-4">
+                <div>
+                    <label for="newProdName" class="block text-xs font-medium text-on-surface-variant mb-1.5">Product Name</label>
+                    <input type="text" id="newProdName" placeholder="e.g. Chocolate Cookie" required class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                </div>
+                <div>
+                    <label for="newProdCategory" class="block text-xs font-medium text-on-surface-variant mb-1.5">Category</label>
+                    <select id="newProdCategory" class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container" required>
+                        <option value="buns">Buns & Pastries</option>
+                        <option value="bread">Bread & Loaves</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label for="newProdRetail" class="block text-xs font-medium text-on-surface-variant mb-1.5">Retail Price (B2C LKR)</label>
+                        <input type="number" id="newProdRetail" min="1" value="150" required class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                    </div>
+                    <div>
+                        <label for="newProdWholesale" class="block text-xs font-medium text-on-surface-variant mb-1.5">Wholesale Price (B2B LKR)</label>
+                        <input type="number" id="newProdWholesale" min="1" value="110" required class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label for="newProdShelfLife" class="block text-xs font-medium text-on-surface-variant mb-1.5">Shelf Life (Days)</label>
+                        <input type="number" id="newProdShelfLife" min="1" value="4" required class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                    </div>
+                    <div>
+                        <label for="newProdIcon" class="block text-xs font-medium text-on-surface-variant mb-1.5">Material Icon Name</label>
+                        <input type="text" id="newProdIcon" value="cookie" placeholder="e.g. cookie" required class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                    </div>
+                    <div>
+                        <label for="newProdDailyTarget" class="block text-xs font-medium text-on-surface-variant mb-1.5">Daily Production Target (pcs)</label>
+                        <input type="number" id="newProdDailyTarget" min="1" value="100" class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-on-surface-variant mb-1.5">BOM Recipe Ingredients</label>
+                    <div id="newProdBOMList" class="flex flex-col gap-2 mb-2">
+                        <!-- Dynamic ingredient rows here -->
+                    </div>
+                    <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface-container text-on-surface rounded-full text-xs font-medium hover:bg-surface-container-high transition-colors" id="addNewProdIngredientRowBtn">
+                        <span class="material-symbols-outlined text-sm">add</span> Add Ingredient
+                    </button>
+                </div>
+                <button type="submit" class="flex items-center justify-center gap-2 px-4 py-3 bg-primary text-on-primary rounded-full font-display font-bold text-sm hover:bg-primary/90 transition-colors mt-2">
+                    <span class="material-symbols-outlined text-lg">add_circle</span> Create Product & Establish BOM
+                </button>
+            </form>
+        </div>
+    </dialog>
+
+    <!-- ===== DIALOG: EDIT RECIPE ===== -->
+    <dialog id="editRecipeDialog">
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-5">
+                <h3 class="font-display font-bold text-on-surface" id="editRecipeTitle">Edit Product Recipe (BOM)</h3>
+                <button class="p-1.5 rounded-full hover:bg-surface-container transition-colors" id="closeEditRecipeDialog">
+                    <span class="material-symbols-outlined text-on-surface-variant">close</span>
+                </button>
+            </div>
+            <form id="editRecipeForm" class="flex flex-col gap-4">
+                <input type="hidden" id="editRecipeProductId">
+                <div>
+                    <label for="editRecipeName" class="block text-xs font-medium text-on-surface-variant mb-1.5">Product Name</label>
+                    <input type="text" id="editRecipeName" required class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                </div>
+                <div>
+                    <label for="editRecipeCategory" class="block text-xs font-medium text-on-surface-variant mb-1.5">Category</label>
+                    <select id="editRecipeCategory" class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container" required>
+                        <option value="buns">Buns & Pastries</option>
+                        <option value="bread">Bread & Loaves</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label for="editRecipeRetail" class="block text-xs font-medium text-on-surface-variant mb-1.5">Retail Price (B2C LKR)</label>
+                        <input type="number" id="editRecipeRetail" min="1" required class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                    </div>
+                    <div>
+                        <label for="editRecipeWholesale" class="block text-xs font-medium text-on-surface-variant mb-1.5">Wholesale Price (B2B LKR)</label>
+                        <input type="number" id="editRecipeWholesale" min="1" required class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label for="editRecipeShelfLife" class="block text-xs font-medium text-on-surface-variant mb-1.5">Shelf Life (Days)</label>
+                        <input type="number" id="editRecipeShelfLife" min="1" required class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                    </div>
+                    <div>
+                        <label for="editRecipeIcon" class="block text-xs font-medium text-on-surface-variant mb-1.5">Icon Name</label>
+                        <input type="text" id="editRecipeIcon" required class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                    </div>
+                    <div>
+                        <label for="editRecipeDailyTarget" class="block text-xs font-medium text-on-surface-variant mb-1.5">Daily Production Target (pcs)</label>
+                        <input type="number" id="editRecipeDailyTarget" min="1" value="100" class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-on-surface-variant mb-1.5">BOM Recipe Ingredients</label>
+                    <div id="editRecipeBOMList" class="flex flex-col gap-2 mb-2">
+                        <!-- Dynamic ingredient rows here -->
+                    </div>
+                    <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface-container text-on-surface rounded-full text-xs font-medium hover:bg-surface-container-high transition-colors" id="addEditRecipeIngredientRowBtn">
+                        <span class="material-symbols-outlined text-sm">add</span> Add Ingredient
+                    </button>
+                </div>
+                <button type="submit" class="flex items-center justify-center gap-2 px-4 py-3 bg-primary text-on-primary rounded-full font-display font-bold text-sm hover:bg-primary/90 transition-colors mt-2">
+                    <span class="material-symbols-outlined text-lg">save</span> Save Changes & Re-Map BOM
+                </button>
+            </form>
+        </div>
+    </dialog>
+
+    <!-- Nav active state CSS (inline to keep with Tailwind pattern) -->
+    <style>
+        .sidebar-nav .nav-link { color: #4f4632; }
+        .sidebar-nav .nav-link:hover { background-color: #f5edde; }
+        .sidebar-nav .nav-link.active { background-color: #ffc107; color: #6d5100; font-weight: 700; }
+        .pay-opt.active { border-color: #785900 !important; background-color: rgba(255,193,7,0.15) !important; }
+        .sub-tab-btn.active { background-color: #785900 !important; color: #ffffff !important; }
+        .tab-btn.active { background-color: #785900 !important; color: #ffffff !important; }
+    </style>
+
+    <!-- Master Scripts -->
+    <script src="js/spiral-bg.js"></script>
+    <script src="js/print-fx.js"></script>
+    <script src="js/guide.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/dashboard.js"></script>
+    <script src="js/pos.js"></script>
+    <script src="js/production.js"></script>
+    <script src="js/inventory.js"></script>
+    <script src="js/b2b.js"></script>
+    <script src="js/accounts.js"></script>
+    <script src="js/api.js"></script>
+</body>
+</html>

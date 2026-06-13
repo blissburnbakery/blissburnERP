@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "blissburn",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["server.js"],
+      "port": 5050,
+      "autoPort": true
+    }
+  ]
+}
