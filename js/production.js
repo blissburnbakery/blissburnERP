@@ -108,6 +108,24 @@ function renderBOMRequirementPreview() {
         submitBtn.disabled = true;
         submitBtn.style.opacity = "0.4";
     }
+
+    // Demand-forecast hint: suggest how many to bake today based on recent sales
+    let hint = document.getElementById("prodForecastHint");
+    if (!hint) {
+        hint = document.createElement("div");
+        hint.id = "prodForecastHint";
+        alertBox.insertAdjacentElement("afterend", hint);
+    }
+    if (window.suggestedBakeToday) {
+        const f = window.suggestedBakeToday(prod.name);
+        if (f && !f.limited) {
+            hint.className = "mt-2 flex items-center gap-2 text-xs font-medium text-primary bg-primary-container/15 px-3 py-2.5 rounded-xl border border-primary-container/40";
+            hint.innerHTML = `<span class="material-symbols-outlined text-sm">insights</span> Suggested today: <strong>${f.suggestToday} pcs</strong> <span class="text-on-surface-variant">(sells ~${f.avgDaily.toFixed(0)}/day, ${f.stock} fresh in stock)</span>`;
+        } else {
+            hint.className = "mt-2 flex items-center gap-2 text-[11px] text-on-surface-variant px-1";
+            hint.innerHTML = `<span class="material-symbols-outlined text-xs">info</span> Not enough sales history yet for a demand suggestion.`;
+        }
+    }
 }
 
 // Initialize production page state

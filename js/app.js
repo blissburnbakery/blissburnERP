@@ -139,6 +139,7 @@ function updateHeaderTitles(view) {
         inventory: { main: "Stock & Ingredients", sub: "Raw materials, fresh-stock deliveries, and recipes" },
         b2b: { main: "Business Orders", sub: "Shops and businesses that buy wholesale on account" },
         accounts: { main: "Money & Payments", sub: "Money owed to you, payments received, and the money log" },
+        reports: { main: "Reports", sub: "Sales, profit, and demand forecasts for any date range" },
         settings: { main: "Settings", sub: "Bakery details, default rates, staff, and data tools" }
     };
     
@@ -155,6 +156,7 @@ function renderView(view) {
     if (view === "inventory" && window.renderInventory) window.renderInventory();
     if (view === "b2b" && window.renderB2B) window.renderB2B();
     if (view === "accounts" && window.renderAccounts) window.renderAccounts();
+    if (view === "reports" && window.renderReports) window.renderReports();
     if (view === "settings" && window.renderSettings) window.renderSettings();
 }
 
@@ -268,7 +270,7 @@ function applyRoleRestrictions(role) {
         else if (role === "production" && ["dashboard", "production", "inventory"].includes(view)) permitted = true;
         else if (role === "sales" && ["dashboard", "pos"].includes(view)) permitted = true;
         else if (role === "delivery" && ["dashboard", "b2b"].includes(view)) permitted = true;
-        else if (role === "accountant" && ["dashboard", "b2b", "accounts"].includes(view)) permitted = true;
+        else if (role === "accountant" && ["dashboard", "b2b", "accounts", "reports"].includes(view)) permitted = true;
         
         if (permitted) {
             link.style.display = "flex";

@@ -15,11 +15,11 @@ function initAuthEngine() {
     
     // Role definitions and their permitted views
     const ROLE_PERMISSIONS = {
-        admin: ["dashboard", "pos", "production", "inventory", "b2b", "accounts", "settings"],
+        admin: ["dashboard", "pos", "production", "inventory", "b2b", "accounts", "reports", "settings"],
         production: ["production", "inventory", "settings"],
         sales: ["pos", "b2b", "settings"],
         delivery: ["b2b"],
-        accountant: ["dashboard", "accounts", "settings"]
+        accountant: ["dashboard", "accounts", "reports", "settings"]
     };
 
     // Check existing session
@@ -245,11 +245,11 @@ window.checkViewPermission = function(view) {
     const savedRole = sessionStorage.getItem("blissburn_role") || "admin";
     
     const ROLE_PERMISSIONS = {
-        admin: ["dashboard", "pos", "production", "inventory", "b2b", "accounts", "settings"],
+        admin: ["dashboard", "pos", "production", "inventory", "b2b", "accounts", "reports", "settings"],
         production: ["production", "inventory", "settings"],
         sales: ["pos", "b2b", "settings"],
         delivery: ["b2b"],
-        accountant: ["dashboard", "accounts", "settings"]
+        accountant: ["dashboard", "accounts", "reports", "settings"]
     };
 
     const permitted = ROLE_PERMISSIONS[savedRole] || [];

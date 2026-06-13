@@ -138,6 +138,10 @@
                 <span class="material-symbols-outlined text-xl">account_balance</span>
                 <span>Money & Payments</span>
             </a>
+            <a href="#reports" class="nav-link flex items-center gap-3 px-4 py-3 rounded-full text-sm font-medium transition-all" data-view="reports">
+                <span class="material-symbols-outlined text-xl">assessment</span>
+                <span>Reports</span>
+            </a>
             <a href="#settings" class="nav-link flex items-center gap-3 px-4 py-3 rounded-full text-sm font-medium transition-all" data-view="settings">
                 <span class="material-symbols-outlined text-xl">settings</span>
                 <span>Settings</span>
@@ -1003,6 +1007,126 @@
                 </div>
             </section>
 
+            <!-- ===== 8. REPORTS & ANALYTICS VIEW ===== -->
+            <section id="view-reports" class="viewport-section">
+                <!-- Filter bar -->
+                <div class="bg-surface-container-lowest rounded-2xl border border-outline-variant/50 p-4 mb-6">
+                    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                        <div class="flex flex-wrap gap-2" id="reportPresetBar">
+                            <button data-range="today" class="px-3 py-1.5 rounded-full text-xs font-medium bg-surface-container text-on-surface-variant transition-all">Today</button>
+                            <button data-range="yesterday" class="px-3 py-1.5 rounded-full text-xs font-medium bg-surface-container text-on-surface-variant transition-all">Yesterday</button>
+                            <button data-range="week" class="px-3 py-1.5 rounded-full text-xs font-medium bg-surface-container text-on-surface-variant transition-all">This Week</button>
+                            <button data-range="month" class="px-3 py-1.5 rounded-full text-xs font-medium bg-primary text-on-primary transition-all">This Month</button>
+                            <button data-range="lastmonth" class="px-3 py-1.5 rounded-full text-xs font-medium bg-surface-container text-on-surface-variant transition-all">Last Month</button>
+                            <button data-range="year" class="px-3 py-1.5 rounded-full text-xs font-medium bg-surface-container text-on-surface-variant transition-all">This Year</button>
+                        </div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <div class="flex items-center gap-1.5 bg-surface-container border border-outline-variant/50 rounded-full px-3 py-1.5 text-xs">
+                                <span class="text-on-surface-variant">From</span>
+                                <input type="date" id="reportStartDate" class="bg-transparent border-none p-0 focus:outline-none text-on-surface cursor-pointer">
+                                <span class="text-on-surface-variant ml-1">To</span>
+                                <input type="date" id="reportEndDate" class="bg-transparent border-none p-0 focus:outline-none text-on-surface cursor-pointer">
+                            </div>
+                            <button id="reportApplyBtn" class="inline-flex items-center gap-1 px-3 py-1.5 bg-primary text-on-primary rounded-full text-xs font-semibold hover:bg-primary/90 transition-colors">
+                                <span class="material-symbols-outlined text-sm">filter_alt</span> Apply
+                            </button>
+                        </div>
+                    </div>
+                    <p class="text-[11px] text-on-surface-variant mt-2">Showing: <span id="reportRangeLabel" class="font-semibold text-on-surface"></span></p>
+                </div>
+
+                <!-- Summary KPI grid -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6" id="reportSummary"></div>
+
+                <!-- Trend chart -->
+                <div class="bg-surface-container-lowest rounded-2xl border border-outline-variant/50 p-5 mb-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="font-display font-bold text-on-surface">Sales Over Time</h3>
+                            <p class="text-xs text-on-surface-variant mt-0.5">Walk-in vs business sales across the selected period</p>
+                        </div>
+                        <div class="flex items-center gap-4 text-xs text-on-surface-variant">
+                            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-primary-container"></span> Walk-in</span>
+                            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-tertiary"></span> Business</span>
+                        </div>
+                    </div>
+                    <div class="w-full overflow-x-auto">
+                        <svg id="reportTrendChart" class="w-full" viewBox="0 0 600 240" role="img" aria-label="Sales over the selected period"></svg>
+                    </div>
+                </div>
+
+                <!-- Sales by product + breakdowns -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <div class="bg-surface-container-lowest rounded-2xl border border-outline-variant/50 p-5">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-display font-bold text-on-surface">Sales by Product</h3>
+                            <button id="reportExportProductBtn" class="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium bg-surface-container hover:bg-surface-container-high text-on-surface rounded-full border border-outline-variant/30 transition-colors">
+                                <span class="material-symbols-outlined text-sm">download</span> Export
+                            </button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead class="text-xs text-on-surface-variant uppercase tracking-wider">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left font-medium">Product</th>
+                                        <th class="px-3 py-2 text-right font-medium">Units</th>
+                                        <th class="px-3 py-2 text-right font-medium">Revenue</th>
+                                        <th class="px-3 py-2 text-right font-medium">Est. Cost</th>
+                                        <th class="px-3 py-2 text-right font-medium">Est. Profit</th>
+                                        <th class="px-3 py-2 text-right font-medium">Margin</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="reportByProductBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 gap-6" id="reportBreakdown"></div>
+                </div>
+
+                <!-- Production report -->
+                <div class="bg-surface-container-lowest rounded-2xl border border-outline-variant/50 p-5 mb-6">
+                    <h3 class="font-display font-bold text-on-surface mb-1">Production in This Period</h3>
+                    <p class="text-xs text-on-surface-variant mb-4">How much you baked vs your target (target = daily target × days in range)</p>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="text-xs text-on-surface-variant uppercase tracking-wider">
+                                <tr>
+                                    <th class="px-3 py-2 text-left font-medium">Product</th>
+                                    <th class="px-3 py-2 text-right font-medium">Baked</th>
+                                    <th class="px-3 py-2 text-right font-medium">Target</th>
+                                    <th class="px-3 py-2 text-right font-medium">% of Target</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reportProductionBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Demand forecast -->
+                <div class="bg-surface-container-lowest rounded-2xl border border-outline-variant/50 p-5">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="material-symbols-outlined text-primary">insights</span>
+                        <h3 class="font-display font-bold text-on-surface">What to Bake Next (Demand Forecast)</h3>
+                    </div>
+                    <p class="text-xs text-on-surface-variant mb-4">Based on recent sales, day-of-week patterns, and the latest trend. Independent of the date filter above.</p>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="text-xs text-on-surface-variant uppercase tracking-wider">
+                                <tr>
+                                    <th class="px-3 py-2 text-left font-medium">Product</th>
+                                    <th class="px-3 py-2 text-right font-medium">Avg/Day</th>
+                                    <th class="px-3 py-2 text-right font-medium">Forecast Tomorrow</th>
+                                    <th class="px-3 py-2 text-right font-medium">Next 7 Days</th>
+                                    <th class="px-3 py-2 text-right font-medium">Stock / Target</th>
+                                    <th class="px-3 py-2 text-right font-medium"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="reportForecastBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
         </div>
     </main>
 
@@ -1525,6 +1649,8 @@
     <script src="js/inventory.js"></script>
     <script src="js/b2b.js"></script>
     <script src="js/accounts.js"></script>
+    <script src="js/forecast.js"></script>
+    <script src="js/reports.js"></script>
     <script src="js/api.js"></script>
 </body>
 </html>
