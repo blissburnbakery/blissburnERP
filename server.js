@@ -16,6 +16,13 @@ const prisma = new PrismaClient();
 const app = express();
 const PORT = process.env.PORT || 5050;
 
+// Interactive transactions run over the Supabase transaction pooler with real
+// network latency; the 5s Prisma default is too tight for multi-step writes
+// (e.g. production depletion does many sequential round-trips) and caused
+// "Transaction not found / old closed transaction" 500s. Give them real budget.
+const TX_OPTS = { maxWait: 10000, timeout: 30000 };
+const withTx = (fn) => prisma.$transaction(fn, TX_OPTS);
+
 // Unit conversion helpers (mirror of the client-side helpers in js/app.js).
 // Quantities are stored in a base unit: grams for unit 'g' (shown as kg),
 // or the ingredient's own unit otherwise (pcs, kg, …) with no scaling.
@@ -248,7 +255,7 @@ app.post('/api/products', async (req, res) => {
     }
 
     try {
-        const result = await prisma.$transaction(async (tx) => {
+        const result = await withTx(async (tx) => {
             // 1. Verify product name uniqueness
             const existingProduct = await tx.product.findUnique({ where: { name } });
             if (existingProduct) {
@@ -315,7 +322,7 @@ app.put('/api/products/:id', async (req, res) => {
     }
 
     try {
-        const result = await prisma.$transaction(async (tx) => {
+        const result = await withTx(async (tx) => {
             // 1. Verify the product exists
             const existingProduct = await tx.product.findUnique({ where: { id } });
             if (!existingProduct) {
@@ -444,7 +451,7 @@ app.post('/api/production', async (req, res) => {
 
     try {
         // Execute whole BOM & FIFO depletion inside a database transaction to preserve ACID integrity!
-        const result = await prisma.$transaction(async (tx) => {
+        const result = await withTx(async (tx) => {
             // 1. Fetch Product with its BOM Recipe mappings
             const product = await tx.product.findUnique({
                 where: { id: productId },
@@ -626,7 +633,7 @@ app.post('/api/checkout', async (req, res) => {
     }
 
     try {
-        const result = await prisma.$transaction(async (tx) => {
+        const result = await withTx(async (tx) => {
             
             // Server-side price recalculation — never trust client-supplied totals
             const allProducts = await tx.product.findMany();
@@ -801,7 +808,7 @@ app.post('/api/invoices/:id/refund', async (req, res) => {
         const { id } = req.params;
         const { spoiled } = req.body; // true = do not restore stock, false = restore ingredients
         
-        const result = await prisma.$transaction(async (tx) => {
+        const result = await withTx(async (tx) => {
             // Find invoice. We can query by id or invoiceNo since users click both
             const invoice = await tx.invoice.findFirst({
                 where: {
@@ -894,7 +901,7 @@ app.post('/api/invoices/:id/void', async (req, res) => {
     try {
         const { id } = req.params;
         
-        const result = await prisma.$transaction(async (tx) => {
+        const result = await withTx(async (tx) => {
             const invoice = await tx.invoice.findFirst({
                 where: {
                     OR: [
@@ -1018,7 +1025,7 @@ app.post('/api/payments', async (req, res) => {
     }
 
     try {
-        await prisma.$transaction(async (tx) => {
+        await withTx(async (tx) => {
             const partner = await tx.b2bPartner.findUnique({ where: { id: partnerId } });
             const invoice = await tx.invoice.findUnique({ where: { id: invoiceId } });
             
@@ -1091,7 +1098,7 @@ app.post('/api/replenish', async (req, res) => {
     }
 
     try {
-        await prisma.$transaction(async (tx) => {
+        await withTx(async (tx) => {
             const ingredient = await tx.ingredient.findUnique({ where: { code: ingredientCode } });
             if (!ingredient) throw new Error('Ingredient not found');
             
@@ -1323,7 +1330,7 @@ app.post('/api/ingredients/:code/adjust', async (req, res) => {
             return res.status(400).json({ error: `Invalid adjustment type. Must be one of: ${ALLOWED_ADJ_TYPES.join(', ')}` });
         }
         
-        const result = await prisma.$transaction(async (tx) => {
+        const result = await withTx(async (tx) => {
             const ingredient = await tx.ingredient.findUnique({ where: { code } });
             if (!ingredient) throw new Error('Ingredient not found');
             
@@ -1387,7 +1394,7 @@ app.post('/api/fifo/:id/discard', async (req, res) => {
         
         const discardedQty = batch.remainingQty;
         
-        await prisma.$transaction(async (tx) => {
+        await withTx(async (tx) => {
             await tx.fifoBatch.update({
                 where: { id },
                 data: { remainingQty: 0 }
