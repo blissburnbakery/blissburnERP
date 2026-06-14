@@ -412,15 +412,15 @@ function renderDashboardStockHealthAlerts() {
         const item = document.createElement("div");
         item.className = "flex items-start gap-3";
         
-        // Convert unit to kg
-        const currentKg = (ing.stock/1000).toFixed(1);
-        const thresholdKg = (ing.threshold/1000).toFixed(1);
-        
+        // Format using the ingredient's own unit
+        const currentQty = window.fmtQty(ing.stock, ing.unit);
+        const thresholdQty = window.fmtQty(ing.threshold, ing.unit);
+
         item.innerHTML = `
             <span class="material-symbols-outlined text-amber-600 text-lg flex-shrink-0">warning</span>
             <div>
                 <p class="text-sm font-semibold text-on-surface">${ing.name} is running critically low</p>
-                <p class="text-xs text-on-surface-variant mt-0.5">Current stock: ${currentKg}kg (Safe limit: ${thresholdKg}kg)</p>
+                <p class="text-xs text-on-surface-variant mt-0.5">Current stock: ${currentQty} (Safe limit: ${thresholdQty})</p>
             </div>
         `;
         list.appendChild(item);

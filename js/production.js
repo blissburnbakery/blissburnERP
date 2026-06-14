@@ -85,8 +85,8 @@ function renderBOMRequirementPreview() {
         card.className = `bg-surface-container rounded-xl p-3 ${isIngSufficient ? '' : 'border-2 border-red-300 bg-red-50'}`;
         card.innerHTML = `
             <p class="text-[10px] uppercase tracking-wider text-on-surface-variant font-medium">${ing.name}</p>
-            <p class="text-sm font-bold text-on-surface mt-1">${(totalNeeded/1000).toFixed(2)}kg</p>
-            <p class="text-xs text-on-surface-variant mt-0.5">Stock: ${(availableStock/1000).toFixed(1)}kg</p>
+            <p class="text-sm font-bold text-on-surface mt-1">${window.fmtQty(totalNeeded, ing.unit, 2)}</p>
+            <p class="text-xs text-on-surface-variant mt-0.5">Stock: ${window.fmtQty(availableStock, ing.unit)}</p>
             <span class="text-[11px] font-bold mt-1 flex items-center gap-0.5 ${isIngSufficient ? 'text-green-700' : 'text-red-700'}">
                 <span class="material-symbols-outlined text-xs">${isIngSufficient ? 'check_circle' : 'cancel'}</span> ${isIngSufficient ? 'OK' : 'Short'}
             </span>

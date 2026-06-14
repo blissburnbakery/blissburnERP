@@ -2,6 +2,32 @@
    BLISSBURN ERP - MASTER COORDINATOR & STATE ENGINE (app.js)
    ========================================================================== */
 
+/* --------------------------------------------------------------------------
+   Unit conversion helpers — single source of truth for ingredient quantities.
+
+   Convention: quantities are stored in a "base unit" per ingredient.
+   - For unit 'g', the base is grams and the UI works in kilograms (×/÷ 1000).
+   - For every other unit (pcs, kg, …) the base IS the unit itself (×/÷ 1).
+
+   Always go through these helpers when converting between what the user types
+   and what is stored, or when formatting a stored value for display.
+   -------------------------------------------------------------------------- */
+window.unitScale = function(unit) { return unit === 'g' ? 1000 : 1; };
+// User-entered display value -> stored base value
+window.qtyToBase = function(value, unit) { return Number(value) * window.unitScale(unit); };
+// Stored base value -> display value (number)
+window.qtyFromBase = function(value, unit) { return Number(value) / window.unitScale(unit); };
+// Label shown next to a quantity ('g' is displayed as 'kg')
+window.displayUnit = function(unit) { return unit === 'g' ? 'kg' : unit; };
+// Stored base value -> formatted string, e.g. "1.2 kg" or "140 pcs"
+window.fmtQty = function(value, unit, decimals = 1) {
+    const v = window.qtyFromBase(value, unit);
+    const num = unit === 'g'
+        ? v.toFixed(decimals)
+        : (Number.isInteger(v) ? String(v) : v.toFixed(2));
+    return `${num} ${window.displayUnit(unit)}`;
+};
+
 // Global State object containing all operational database tables
 window.BlissburnState = {
     products: [],
@@ -332,7 +358,7 @@ function auditFIFOAndInvoices() {
                 id: `audit-stock-${ing.code}`,
                 type: "warning",
                 title: "Low Ingredient Stock",
-                desc: `${ing.name} stock level (${(ing.stock/1000).toFixed(1)}kg) is below safe threshold limit.`,
+                desc: `${ing.name} stock level (${window.fmtQty(ing.stock, ing.unit)}) is below safe threshold limit.`,
                 time: "Audit Check",
                 isAudit: true
             });

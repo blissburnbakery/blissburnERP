@@ -166,9 +166,9 @@ function renderCentralStockLedger() {
             statusBadge = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Low Stock</span>`;
         }
         
-        const displayStock = (ing.stock / 1000).toFixed(1);
-        const displayThreshold = (ing.threshold / 1000).toFixed(1);
-        const displayUnit = ing.unit === "g" ? "kg" : ing.unit;
+        const displayStock = window.qtyFromBase(ing.stock, ing.unit).toFixed(1);
+        const displayThreshold = window.qtyFromBase(ing.threshold, ing.unit).toFixed(1);
+        const displayUnit = window.displayUnit(ing.unit);
         
         row.innerHTML = `
             <td class="px-4 py-3 border-t border-outline-variant/30"><code class="text-xs bg-surface-container px-1.5 py-0.5 rounded">${ing.code.toUpperCase()}</code></td>
@@ -345,8 +345,8 @@ function renderFIFOQueueTable() {
             <td class="px-4 py-3 border-t border-outline-variant/30">${name}</td>
             <td class="px-4 py-3 border-t border-outline-variant/30"><code class="text-xs bg-surface-container px-1.5 py-0.5 rounded">${batch.id}</code></td>
             <td class="px-4 py-3 border-t border-outline-variant/30">${batch.dateReceived}</td>
-            <td class="px-4 py-3 border-t border-outline-variant/30">${(batch.originalQty/1000).toFixed(1)} kg</td>
-            <td class="px-4 py-3 border-t border-outline-variant/30 ${remainingClass}">${(batch.remainingQty/1000).toFixed(1)} kg</td>
+            <td class="px-4 py-3 border-t border-outline-variant/30">${window.fmtQty(batch.originalQty, ing ? ing.unit : 'g')}</td>
+            <td class="px-4 py-3 border-t border-outline-variant/30 ${remainingClass}">${window.fmtQty(batch.remainingQty, ing ? ing.unit : 'g')}</td>
             <td class="px-4 py-3 border-t border-outline-variant/30">${expBadge}</td>
             <td class="px-4 py-3 border-t border-outline-variant/30">${hazardWarning || '<span class="text-on-surface-variant">-</span>'}</td>
             <td class="px-4 py-3 border-t border-outline-variant/30 font-medium">
@@ -947,8 +947,8 @@ document.addEventListener("DOMContentLoaded", () => {
             const editCode = document.getElementById("editIngredientCode").value;
             const code = document.getElementById("ingCode").value.trim().toLowerCase();
             const name = document.getElementById("ingName").value.trim();
-            const threshold = Number(document.getElementById("ingThreshold").value) * 1000; // convert kg -> g
             const unit = document.getElementById("ingUnit").value;
+            const threshold = window.qtyToBase(document.getElementById("ingThreshold").value, unit); // kg->g for 'g', as-is otherwise
             const unitCost = Number(document.getElementById("ingUnitCost")?.value) || 0;
             const isPerishable = document.getElementById("ingIsPerishable").checked;
 
@@ -1034,7 +1034,7 @@ window.editIngredient = function(code) {
     document.getElementById("ingCode").disabled = true; // disable editing code
     
     document.getElementById("ingName").value = ing.name;
-    document.getElementById("ingThreshold").value = (ing.threshold / 1000).toFixed(1); // convert g -> kg
+    document.getElementById("ingThreshold").value = window.qtyFromBase(ing.threshold, ing.unit).toFixed(1); // g->kg for 'g', as-is otherwise
     document.getElementById("ingUnit").value = ing.unit;
     const unitCostInput = document.getElementById("ingUnitCost");
     if (unitCostInput) unitCostInput.value = ing.unitCost || 0;

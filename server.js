@@ -16,6 +16,19 @@ const prisma = new PrismaClient();
 const app = express();
 const PORT = process.env.PORT || 5050;
 
+// Unit conversion helpers (mirror of the client-side helpers in js/app.js).
+// Quantities are stored in a base unit: grams for unit 'g' (shown as kg),
+// or the ingredient's own unit otherwise (pcs, kg, …) with no scaling.
+const unitScale = (unit) => (unit === 'g' ? 1000 : 1);
+const displayUnit = (unit) => (unit === 'g' ? 'kg' : unit);
+const fmtQty = (value, unit, decimals = 1) => {
+    const v = Number(value) / unitScale(unit);
+    const num = unit === 'g'
+        ? v.toFixed(decimals)
+        : (Number.isInteger(v) ? String(v) : v.toFixed(2));
+    return `${num} ${displayUnit(unit)}`;
+};
+
 // Security: Restrict CORS to known origins. The server's own runtime port is
 // always allowed — hardcoding 5050 broke same-origin POSTs when PORT differed.
 const ALLOWED_ORIGINS = [
@@ -459,7 +472,7 @@ app.post('/api/production', async (req, res) => {
                 }
 
                 if (usableStock < totalNeeded) {
-                    throw new Error(`Insufficient Stock: Ingredient ${recipe.ingredient.name} has ${(Math.max(usableStock, 0)/1000).toFixed(1)}kg usable (non-expired) stock but this order requires ${(totalNeeded/1000).toFixed(1)}kg. Discard expired batches or replenish.`);
+                    throw new Error(`Insufficient Stock: Ingredient ${recipe.ingredient.name} has ${fmtQty(Math.max(usableStock, 0), recipe.ingredient.unit)} usable (non-expired) stock but this order requires ${fmtQty(totalNeeded, recipe.ingredient.unit)}. Discard expired batches or replenish.`);
                 }
             }
 
@@ -1364,8 +1377,9 @@ app.post('/api/ingredients/:code/adjust', async (req, res) => {
 app.post('/api/fifo/:id/discard', async (req, res) => {
     try {
         const { id } = req.params;
-        const batch = await prisma.fifoBatch.findUnique({ where: { id } });
+        const batch = await prisma.fifoBatch.findUnique({ where: { id }, include: { ingredient: true } });
         if (!batch) return res.status(404).json({ error: 'FIFO batch not found' });
+        const batchUnit = batch.ingredient ? batch.ingredient.unit : 'g';
         
         if (batch.remainingQty <= 0) {
             return res.status(400).json({ error: 'Batch already fully depleted' });
@@ -1386,14 +1400,14 @@ app.post('/api/fifo/:id/discard', async (req, res) => {
                 data: {
                     type: 'warning',
                     title: 'FIFO Batch Discarded',
-                    desc: `Batch ${batch.batchCode} (${(discardedQty/1000).toFixed(1)}kg) written off.`,
+                    desc: `Batch ${batch.batchCode} (${fmtQty(discardedQty, batchUnit)}) written off.`,
                     time: new Date().toISOString(),
                     isAudit: false
                 }
             });
         });
         
-        res.json({ success: true, discardedQty, message: `Batch discarded. ${(discardedQty/1000).toFixed(1)}kg removed from central stock.` });
+        res.json({ success: true, discardedQty, message: `Batch discarded. ${fmtQty(discardedQty, batchUnit)} removed from central stock.` });
     } catch (e) {
         res.status(500).json({ error: 'Failed to discard batch', details: e.message });
     }
