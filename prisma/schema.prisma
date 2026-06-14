@@ -92,6 +92,7 @@ model ProductionLog {
   
   @@index([productId])
   @@index([batchCode])
+  @@index([dateProduced])
 }
 
 // 6. B2B Corporate Wholesale Clients Profiles
@@ -135,6 +136,7 @@ model Invoice {
   @@index([partnerId])
   @@index([invoiceNo])
   @@index([date])
+  @@index([customerType, status])
 }
 
 // 8. Invoice Line Items Table
@@ -206,4 +208,16 @@ model GlobalConfig {
   smsSenderId       String?  // registered sender ID / mask
   smsUserId         String?  // Notify.lk user_id (unused for Text.lk)
   updatedAt         DateTime @updatedAt
+}
+
+// 13. Login sessions (DB-backed so they survive server restarts/redeploys)
+model Session {
+  id        String   @id          // the opaque bearer token
+  staffId   String
+  username  String
+  role      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
 }

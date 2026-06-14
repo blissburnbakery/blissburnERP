@@ -7,11 +7,11 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "build": "prisma generate",
+    "build": "prisma generate && prisma migrate deploy",
     "postinstall": "prisma generate",
-    "db:init": "npx prisma migrate dev --name init",
     "db:seed": "node prisma/seed.js",
-    "db:studio": "npx prisma studio"
+    "db:studio": "npx prisma studio",
+    "db:backup": "pg_dump \"$DIRECT_URL\" -F c -f backups/blissburn_$(date +%F_%H%M).dump"
   },
   "engines": {
     "node": ">=20"

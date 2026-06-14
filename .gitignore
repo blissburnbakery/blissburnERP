@@ -10,6 +10,9 @@ node_modules/
 prisma/dev.db
 prisma/dev.db-journal
 
+# Database backups
+backups/
+
 # OS files
 .DS_Store
 Thumbs.db

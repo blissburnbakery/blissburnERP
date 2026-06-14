@@ -139,6 +139,10 @@ function initAuthEngine() {
                 confirmText: "Sign Out"
             });
             if (ok) {
+                // Best-effort server-side revocation (token auto-attached by api.js)
+                try {
+                    await fetch(`${window.location.origin}/api/logout`, { method: 'POST' });
+                } catch (e) { /* offline — local clear still signs out this device */ }
                 sessionStorage.clear();
                 window.location.reload();
             }

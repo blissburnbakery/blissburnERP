@@ -88,6 +88,33 @@ setInterval(() => {
     }
 }, 300000);
 
+// Lightweight request logger: METHOD path status duration. Tags slow requests.
+// Skips static asset + healthcheck noise. No external dependency.
+app.use((req, res, next) => {
+    const p = req.path;
+    if (p.startsWith('/css') || p.startsWith('/js') || p.startsWith('/assets') || p === '/healthz' || p === '/favicon.ico') {
+        return next();
+    }
+    const start = Date.now();
+    res.on('finish', () => {
+        const ms = Date.now() - start;
+        const slow = ms > 1000 ? ' SLOW' : '';
+        console.log(`${req.method} ${req.originalUrl} ${res.statusCode} ${ms}ms${slow}`);
+    });
+    next();
+});
+
+// Healthcheck (no auth) — verifies the DB is reachable. Used by Railway and
+// any external keep-alive ping against the Supabase project.
+app.get('/healthz', async (req, res) => {
+    try {
+        await prisma.$queryRaw`SELECT 1`;
+        res.json({ status: 'ok', db: true });
+    } catch (e) {
+        res.status(503).json({ status: 'degraded', db: false });
+    }
+});
+
 // Serve only frontend assets — NOT the entire project directory
 app.use('/css', express.static(path.join(__dirname, 'css')));
 app.use('/js', express.static(path.join(__dirname, 'js')));
@@ -122,15 +149,12 @@ function sanitizeStaff(staff) {
     return safe;
 }
 
-// In-memory session store: token -> { staffId, username, role, expiresAt }.
-// A server restart just means staff sign in again.
+// DB-backed session store (Session table). Tokens survive server restarts and
+// redeploys, and can be revoked (logout). Expired rows are swept periodically.
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
-const sessions = new Map();
 setInterval(() => {
-    const now = Date.now();
-    for (const [token, s] of sessions) {
-        if (s.expiresAt < now) sessions.delete(token);
-    }
+    prisma.session.deleteMany({ where: { expiresAt: { lt: new Date() } } })
+        .catch(e => console.error('Session cleanup failed:', e.message));
 }, 600000);
 
 // Admin-only API surface
@@ -143,15 +167,25 @@ function isAdminOnlyRoute(req) {
 }
 
 // Bearer-token guard for every /api route except login
-app.use('/api', (req, res, next) => {
+app.use('/api', async (req, res, next) => {
     if (req.path === '/login') return next();
 
     const header = req.headers.authorization || '';
     const token = header.startsWith('Bearer ') ? header.slice(7) : null;
-    const session = token ? sessions.get(token) : null;
 
-    if (!session || session.expiresAt < Date.now()) {
-        if (token) sessions.delete(token);
+    let session = null;
+    if (token) {
+        try {
+            session = await prisma.session.findUnique({ where: { id: token } });
+        } catch (e) {
+            return res.status(503).json({ error: 'Authentication store unavailable. Please try again.' });
+        }
+    }
+
+    if (!session || session.expiresAt < new Date()) {
+        if (session) {
+            prisma.session.delete({ where: { id: token } }).catch(() => {});
+        }
         return res.status(401).json({ error: 'Authentication required. Please sign in again.' });
     }
 
@@ -366,7 +400,17 @@ app.get('/api/fifo', async (req, res) => {
 // GET: Retrieve completed production logs
 app.get('/api/production', async (req, res) => {
     try {
+        // Bounded window: keep all still-active (sellable) batches plus recent
+        // history (default 90 days). Sold-out, long-past batches are excluded.
+        const { from } = req.query;
+        const fromDate = from || new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0];
         const logs = await prisma.productionLog.findMany({
+            where: {
+                OR: [
+                    { active: true },
+                    { dateProduced: { gte: fromDate } }
+                ]
+            },
             include: { product: true }
         });
         res.json(logs);
@@ -512,7 +556,7 @@ app.post('/api/production', async (req, res) => {
 // GET: Fetch B2B invoices ledger
 app.get('/api/invoices', async (req, res) => {
     try {
-        const { simulatedDate } = req.query;
+        const { simulatedDate, from } = req.query;
         if (simulatedDate) {
             // Find all Unpaid B2B invoices past their due dates and mark them Overdue
             await prisma.invoice.updateMany({
@@ -525,8 +569,22 @@ app.get('/api/invoices', async (req, res) => {
                 }
             });
         }
-        
+
+        // Bounded window: default to the start of the current calendar year (of
+        // the working date). We always also return any still-owing or
+        // unpaid/overdue invoice regardless of age, so receivables and aging
+        // stay correct no matter how old the debt is.
+        const anchor = simulatedDate || new Date().toISOString().split('T')[0];
+        const fromDate = from || `${anchor.slice(0, 4)}-01-01`;
+
         const invoices = await prisma.invoice.findMany({
+            where: {
+                OR: [
+                    { date: { gte: fromDate } },
+                    { outstanding: { gt: 0 } },
+                    { status: { in: ['Unpaid', 'Overdue'] } }
+                ]
+            },
             include: { items: true, partner: true }
         });
         res.json(invoices);
@@ -1374,11 +1432,14 @@ app.post('/api/login', async (req, res) => {
         }
 
         const token = randomUUID() + randomBytes(16).toString('hex');
-        sessions.set(token, {
-            staffId: staff.id,
-            username: staff.username,
-            role: staff.role,
-            expiresAt: Date.now() + SESSION_TTL_MS
+        await prisma.session.create({
+            data: {
+                id: token,
+                staffId: staff.id,
+                username: staff.username,
+                role: staff.role,
+                expiresAt: new Date(Date.now() + SESSION_TTL_MS)
+            }
         });
 
         res.json({
@@ -1392,6 +1453,18 @@ app.post('/api/login', async (req, res) => {
         });
     } catch (e) {
         res.status(500).json({ error: 'Authentication engine failed', details: e.message });
+    }
+});
+
+// POST: Sign out — revoke the current session token server-side
+app.post('/api/logout', async (req, res) => {
+    try {
+        const header = req.headers.authorization || '';
+        const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+        if (token) await prisma.session.delete({ where: { id: token } }).catch(() => {});
+        res.json({ success: true });
+    } catch (e) {
+        res.json({ success: true });
     }
 });
 
@@ -1490,54 +1563,60 @@ app.get('/api/dashboard', async (req, res) => {
     }
     
     try {
-        const simDate = new Date(simulatedDate);
+        // 30-day window for the chart (the rest are point-in-time aggregates)
+        const windowFrom = new Date(new Date(simulatedDate).getTime() - 30 * 86400000)
+            .toISOString().split('T')[0];
 
-        // 1. Total sales revenue
-        const invoices = await prisma.invoice.findMany({ include: { items: true } });
-        const totalSalesSum = invoices.reduce((sum, inv) => sum + inv.grandTotal, 0);
+        const [salesAgg, recvAgg, ingredients, prodTodayAgg, chartRows,
+               products, quotaRows, recentTimeline] = await Promise.all([
+            // 1. Total sales revenue
+            prisma.invoice.aggregate({ _sum: { grandTotal: true } }),
+            // 2. Outstanding B2B receivables
+            prisma.invoice.aggregate({ _sum: { outstanding: true }, where: { customerType: 'B2B' } }),
+            // 3. Low stock (ingredients table is tiny — column compare done in JS)
+            prisma.ingredient.findMany({ select: { stock: true, threshold: true } }),
+            // 4. Today's production output
+            prisma.productionLog.aggregate({ _sum: { quantity: true }, where: { dateProduced: simulatedDate } }),
+            // 5. Sales chart: per date + customer type over the window
+            prisma.invoice.groupBy({
+                by: ['date', 'customerType'],
+                _sum: { grandTotal: true },
+                where: { date: { gte: windowFrom } }
+            }),
+            // 6. Products (small) + today's per-product output for quotas
+            prisma.product.findMany(),
+            prisma.productionLog.groupBy({
+                by: ['productId'],
+                _sum: { quantity: true },
+                where: { dateProduced: simulatedDate }
+            }),
+            // 7. Recent cashbook timeline
+            prisma.financialLog.findMany({ orderBy: { date: 'desc' }, take: 6 })
+        ]);
 
-        // 2. Outstanding Receivables
-        const totalReceivables = invoices
-            .filter(inv => inv.customerType === 'B2B')
-            .reduce((sum, inv) => sum + inv.outstanding, 0);
-
-        // 3. Low stock count
-        const ingredients = await prisma.ingredient.findMany();
+        const totalSalesSum = salesAgg._sum.grandTotal || 0;
+        const totalReceivables = recvAgg._sum.outstanding || 0;
         const lowStockCount = ingredients.filter(ing => ing.stock <= ing.threshold).length;
+        const dailyProductionOutput = prodTodayAgg._sum.quantity || 0;
 
-        // 4. Daily Production Log output matching simulated date
-        const productionLogs = await prisma.productionLog.findMany({ include: { product: true } });
-        const dailyProductionOutput = productionLogs
-            .filter(log => log.dateProduced === simulatedDate)
-            .reduce((sum, log) => sum + log.quantity, 0);
-
-        // 5. Build chronological sales chart details (B2C cash vs B2B wholesale credit)
+        // Reshape chart groupBy rows into [{ date, b2c, b2b }]
         const salesByDate = {};
-        invoices.forEach(inv => {
-            const d = inv.date;
-            if (!salesByDate[d]) {
-                salesByDate[d] = { b2c: 0, b2b: 0 };
-            }
-            if (inv.customerType === 'B2B') {
-                salesByDate[d].b2b += inv.grandTotal;
-            } else {
-                salesByDate[d].b2c += inv.grandTotal;
-            }
+        chartRows.forEach(r => {
+            if (!salesByDate[r.date]) salesByDate[r.date] = { b2c: 0, b2b: 0 };
+            const v = r._sum.grandTotal || 0;
+            if (r.customerType === 'B2B') salesByDate[r.date].b2b += v;
+            else salesByDate[r.date].b2c += v;
         });
-        const chartDates = Object.keys(salesByDate).sort((a,b) => new Date(a) - new Date(b));
-        const chartDataPoints = chartDates.map(d => ({
-            date: d,
-            b2c: salesByDate[d].b2c,
-            b2b: salesByDate[d].b2b
-        }));
+        const chartDataPoints = Object.keys(salesByDate)
+            .sort((a, b) => new Date(a) - new Date(b))
+            .map(d => ({ date: d, b2c: salesByDate[d].b2c, b2b: salesByDate[d].b2b }));
 
-        // 6. Visual Daily Production Quotas (target configured per product)
-        const products = await prisma.product.findMany();
+        // Quotas: map today's per-product output (by productId) onto products
+        const loggedByProduct = {};
+        quotaRows.forEach(r => { loggedByProduct[r.productId] = r._sum.quantity || 0; });
         const productionQuotas = products.map(prod => {
             const target = prod.dailyTarget || 100;
-            const todayLogged = productionLogs
-                .filter(log => log.product.name === prod.name && log.dateProduced === simulatedDate)
-                .reduce((sum, log) => sum + log.quantity, 0);
+            const todayLogged = loggedByProduct[prod.id] || 0;
             return {
                 name: prod.name,
                 logged: todayLogged,
@@ -1545,12 +1624,6 @@ app.get('/api/dashboard', async (req, res) => {
                 pct: Math.min((todayLogged / target) * 100, 100)
             };
         });
-
-        // 7. Recent Cashbook ledger transaction timeline lists (limit to 6)
-        const txns = await prisma.financialLog.findMany();
-        const recentTimeline = txns
-            .sort((a,b) => new Date(b.date) - new Date(a.date))
-            .slice(0, 6);
 
         res.json({
             kpis: {
@@ -1577,7 +1650,13 @@ app.get('/api/dashboard', async (req, res) => {
 // that are not derivable from invoices alone
 app.get('/api/financial-log', async (req, res) => {
     try {
-        const txns = await prisma.financialLog.findMany();
+        // Bounded: most recent 1000 entries (or from a given date), newest first.
+        const { from } = req.query;
+        const txns = await prisma.financialLog.findMany({
+            where: from ? { date: { gte: from } } : undefined,
+            orderBy: { date: 'desc' },
+            take: 1000
+        });
         res.json(txns);
     } catch (e) {
         res.status(500).json({ error: 'Failed to fetch financial ledger', details: e.message });
@@ -1789,9 +1868,11 @@ app.post('/api/sms/reminders/run', async (req, res) => {
 // GET: Retrieve notifications list
 app.get('/api/notifications', async (req, res) => {
     try {
-        const list = await prisma.notification.findMany();
-        // Sort newest first
-        list.reverse();
+        // Newest first, capped — the drawer never needs the full history.
+        const list = await prisma.notification.findMany({
+            orderBy: { createdAt: 'desc' },
+            take: 50
+        });
         res.json(list);
     } catch (e) {
         res.status(500).json({ error: 'Failed to fetch notifications', details: e.message });
@@ -1812,7 +1893,8 @@ app.post('/api/notifications/clear', async (req, res) => {
    GLOBAL ERROR HANDLER
    ========================================================================== */
 app.use((err, req, res, next) => {
-    console.error('Unhandled error:', err.message);
+    console.error(`Unhandled error on ${req.method} ${req.originalUrl}:`, err.message);
+    if (process.env.NODE_ENV !== 'production' && err.stack) console.error(err.stack);
     res.status(err.status || 500).json({
         error: process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message
     });
@@ -1828,6 +1910,14 @@ app.use((req, res) => {
    ========================================================================== */
 app.listen(PORT, () => {
     console.log(`Blissburn ERP Production REST Server running on http://localhost:${PORT}`);
+});
+
+// Last-resort safety nets: log instead of crashing silently
+process.on('unhandledRejection', (reason) => {
+    console.error('Unhandled promise rejection:', reason);
+});
+process.on('uncaughtException', (err) => {
+    console.error('Uncaught exception:', err);
 });
 
 // Graceful shutdown
