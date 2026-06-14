@@ -162,6 +162,7 @@ function isAdminOnlyRoute(req) {
     if (req.path.startsWith('/staff')) return true;                   // staff registry & CRUD
     if (req.method === 'PUT' && req.path === '/config') return true;  // global settings writes
     if (req.method === 'POST' && req.path === '/sms/test') return true; // gateway test send
+    if (req.method === 'POST' && req.path === '/system/wipe') return true; // factory reset
     if (req.method === 'DELETE') return true;                         // all deletes are owner-level
     return false;
 }
@@ -1886,6 +1887,35 @@ app.post('/api/notifications/clear', async (req, res) => {
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ error: 'Failed to clear notifications', details: e.message });
+    }
+});
+
+/* ==========================================================================
+   8. FACTORY RESET — wipe all data + catalog (Admin Only)
+   ========================================================================== */
+
+// POST: Permanently delete ALL business data and the product catalog in one
+// transaction. Deliberately KEEPS Staff (logins), GlobalConfig (bakery/SMS
+// settings), and Session (so the admin stays signed in). Irreversible.
+// Delete order is FK-safe (mirrors prisma/seed.js, minus staff).
+app.post('/api/system/wipe', async (req, res) => {
+    try {
+        await prisma.$transaction([
+            prisma.notification.deleteMany(),
+            prisma.financialLog.deleteMany(),
+            prisma.invoiceItem.deleteMany(),
+            prisma.invoice.deleteMany(),
+            prisma.productionLog.deleteMany(),
+            prisma.b2bPartner.deleteMany(),
+            prisma.fifoBatch.deleteMany(),
+            prisma.recipeItem.deleteMany(),
+            prisma.ingredient.deleteMany(),
+            prisma.product.deleteMany()
+        ]);
+        console.log(`Factory reset performed by ${req.staff && req.staff.username}`);
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: 'Factory reset failed', details: e.message });
     }
 });
 

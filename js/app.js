@@ -772,21 +772,29 @@ window.renderSettings = function() {
         showToast("success", "Settings Saved", "Global default parameters applied successfully.");
     };
 
-    // Bind Database reset
+    // Bind Database reset — performs a REAL server-side wipe of the database
     document.getElementById("systemWipedownBtn").onclick = async () => {
+        if (window.requireOnline && !window.requireOnline("reset the system")) return;
+
         const ok = await window.showConfirm({
-            title: "Factory System Wipedown",
-            message: "This formats all invoice logs, production quotas, B2B client accounts, and resets every ledger back to seed values on this device. This action cannot be undone.",
-            confirmText: "Wipe Everything",
+            title: "Factory Reset — Wipe Database",
+            message: "This permanently DELETES all sales, invoices, baking records, deliveries, the money log, business customers, products, recipes, and ingredients from the database. Staff logins and your bakery/SMS settings are kept. This CANNOT be undone.",
+            confirmText: "Wipe the Database",
             danger: true
         });
-        if (ok) {
-            sessionStorage.clear();
-            localStorage.removeItem("blissburn_erp_state");
-            showToast("info", "Database Formatted", "System state wiped back to factory default values. Reloading...");
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
+        if (!ok) return;
+
+        try {
+            const res = await fetch(`${window.location.origin}/api/system/wipe`, { method: "POST" });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Reset failed");
+
+            // Pull the now-empty state and re-render in place (stay signed in)
+            await window.syncWithBackend();
+            triggerActiveModuleRender();
+            showToast("success", "Database Wiped", "Everything was cleared. You're starting from a blank slate.");
+        } catch (e) {
+            showToast("danger", "Reset Failed", e.message);
         }
     };
 
