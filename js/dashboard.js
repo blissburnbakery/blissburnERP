@@ -452,7 +452,7 @@ function renderOperationalTimeline() {
         if (txn.method === "cash" || txn.method === "card") dotColor = "bg-green-500";
         if (txn.method === "credit") dotColor = "bg-primary-container";
         if (txn.method === "payment-in") dotColor = "bg-green-500";
-        if (txn.description.toLowerCase().includes("replenish")) dotColor = "bg-red-500";
+        if (txn.method === "purchase" || txn.description.toLowerCase().includes("replenish")) dotColor = "bg-red-500";
         
         // Format simulated date relative display
         const dateObj = new Date(txn.date);
@@ -463,7 +463,7 @@ function renderOperationalTimeline() {
             <div class="flex-1 min-w-0">
                 <p class="text-[11px] text-outline">${dateLabel}</p>
                 <p class="text-xs font-semibold text-on-surface mt-0.5">${txn.description}</p>
-                <p class="text-[11px] text-on-surface-variant mt-0.5 truncate">${txn.amount > 0 ? `Posted ledger amount: LKR ${txn.amount.toLocaleString()}` : 'System ledger post'}</p>
+                <p class="text-[11px] text-on-surface-variant mt-0.5 truncate">${txn.amount !== 0 ? `Posted ledger amount: LKR ${txn.amount.toLocaleString()}` : 'System ledger post'}</p>
             </div>
         `;
         timeline.appendChild(item);

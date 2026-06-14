@@ -1151,14 +1151,17 @@ app.post('/api/replenish', async (req, res) => {
                 });
             }
 
-            // Post transaction timeline log
+            // Post transaction timeline log — a stock purchase is money out, recorded
+            // as a negative expense at the ingredient's standard unit cost (qty is in
+            // display units; unitCost is per-kg for 'g' ingredients, per-piece otherwise).
+            const purchaseCost = qty * (Number(ingredient.unitCost) || 0);
             await tx.financialLog.create({
                 data: {
                     txnCode: `TXN-${Date.now().toString(36).toUpperCase()}`,
                     date: receivingDate,
                     description: `Inventory Replenishment of ${ingredient.name} (+${qty} ${ingredient.unit === 'g' ? 'kg' : ingredient.unit})`,
-                    method: 'cash',
-                    amount: 0.0
+                    method: 'purchase',
+                    amount: -purchaseCost
                 }
             });
         });

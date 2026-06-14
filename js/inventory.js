@@ -520,8 +520,8 @@ function setupInventoryReplenishForm() {
             id: `TXN-${state.financialLog.length + 5001}`,
             date: recDateStr,
             description: `Inventory Replenishment of ${ing.name} (+${qty} ${ing.unit === 'g' ? 'kg' : ing.unit})`,
-            method: "cash",
-            amount: 0 // Stock intake doesn't post cash immediately (B2B cost tracked on accounts payable)
+            method: "purchase",
+            amount: -(qty * (Number(ing.unitCost) || 0)) // stock purchase = money out at standard unit cost
         });
         saveState();
     };

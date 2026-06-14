@@ -69,7 +69,7 @@ window.renderAccounts = function() {
     if (exportTxnsBtn) {
         exportTxnsBtn.onclick = () => {
             const state = window.BlissburnState;
-            const headers = ["Txn ID", "Date", "Description", "Payment Method", "Revenue (LKR)"];
+            const headers = ["Txn ID", "Date", "Description", "Payment Method", "Amount (LKR)"];
             const rows = state.financialLog.map(txn => [
                 txn.id,
                 txn.date,
@@ -326,7 +326,13 @@ function renderFinancialTransactionsTable(searchFilter = "") {
         } else if (txn.method === "payment-in") {
             methodBadge = `<span class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-800"><span class="material-symbols-outlined text-[10px]">task_alt</span> Credit Recv</span>`;
             textAmtClass = "text-green-700 font-semibold";
+        } else if (txn.method === "purchase") {
+            methodBadge = `<span class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-100 text-red-800"><span class="material-symbols-outlined text-[10px]">shopping_cart</span> Purchase</span>`;
+            textAmtClass = "text-red-700 font-semibold";
         }
+
+        // Any money-out entry (purchase, refund, void, wastage) shows in red.
+        if (Number(txn.amount) < 0) textAmtClass = "text-red-700 font-semibold";
         
         row.innerHTML = `
             <td class="px-3 py-2 border-t border-outline-variant/30"><code class="text-[10px] bg-surface-container px-1.5 py-0.5 rounded">${txn.id}</code></td>
