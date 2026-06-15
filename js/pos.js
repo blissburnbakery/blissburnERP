@@ -29,10 +29,75 @@ function getSellableStock(productName) {
 // Initialize POS view hook
 window.renderPOS = function() {
     loadB2BCustomerSelectOptions();
+    setupCustomerSearch();
     renderProductCatalog();
     renderCart();
     setupPOSEventListeners();
 };
+
+// Searchable customer picker layered over the (hidden) #posCustomerSelect, which
+// stays the source of truth for checkout, pricing, and credit logic.
+function setupCustomerSearch() {
+    const select = document.getElementById("posCustomerSelect");
+    const input = document.getElementById("posCustomerSearchInput");
+    const results = document.getElementById("posCustomerResults");
+    const clearBtn = document.getElementById("posCustomerClear");
+    if (!select || !input || !results) return;
+
+    // Build the option model from the select so it always mirrors current partners
+    const options = [...select.options].map(o => ({
+        id: o.value,
+        type: o.getAttribute("data-type"),
+        label: o.value === "walkin" ? "Walk-in Customer" : o.innerText.replace(/\s*\(business\)\s*$/i, "")
+    }));
+    const labelFor = (id) => (options.find(o => o.id === id) || {}).label || "";
+
+    // Reflect the active selection in the input
+    input.value = labelFor(select.value || "walkin");
+
+    const hide = () => results.classList.add("hidden");
+
+    function pick(id) {
+        select.value = id;
+        select.dispatchEvent(new Event("change")); // reuse existing onchange (badge/credit/pricing)
+        input.value = labelFor(id);
+        hide();
+    }
+
+    function render(list) {
+        if (!list.length) {
+            results.innerHTML = `<div class="px-3 py-2 text-xs text-on-surface-variant">No matching customer</div>`;
+            return;
+        }
+        results.innerHTML = list.map(o => `
+            <button type="button" data-id="${o.id}" class="w-full text-left px-3 py-2 text-sm hover:bg-surface-container transition-colors flex items-center gap-2">
+                <span class="material-symbols-outlined text-sm text-on-surface-variant">${o.type === 'B2B' ? 'store' : 'person'}</span>
+                <span class="flex-1 truncate">${o.label}</span>
+                <span class="text-[10px] px-1.5 py-0.5 rounded ${o.type === 'B2B' ? 'bg-blue-50 text-blue-700' : 'bg-green-50 text-green-700'}">${o.type === 'B2B' ? 'Business' : 'Walk-in'}</span>
+            </button>`).join("");
+        results.querySelectorAll("button[data-id]").forEach(b => b.onclick = () => pick(b.getAttribute("data-id")));
+    }
+
+    function show(filter) {
+        const f = (filter || "").toLowerCase().trim();
+        render(options.filter(o => o.label.toLowerCase().includes(f)));
+        results.classList.remove("hidden");
+    }
+
+    input.oninput = () => show(input.value);
+    input.onfocus = () => show("");          // focusing lists everyone
+    if (clearBtn) clearBtn.onclick = () => { pick("walkin"); input.focus(); };
+
+    // Hide the dropdown when clicking elsewhere (bind once)
+    if (!setupCustomerSearch._outsideBound) {
+        document.addEventListener("click", (e) => {
+            const combo = document.getElementById("posCustomerCombo");
+            const res = document.getElementById("posCustomerResults");
+            if (combo && res && !combo.contains(e.target)) res.classList.add("hidden");
+        });
+        setupCustomerSearch._outsideBound = true;
+    }
+}
 
 // Populate the customer selector in the cart header
 function loadB2BCustomerSelectOptions() {
@@ -206,6 +271,32 @@ function adjustCartQty(productId, amount) {
     renderProductCatalog(getActiveCategory(), document.getElementById("posSearch").value);
 }
 
+// Set an absolute cart quantity (used by the typed quantity field). Clamps to
+// fresh stock; 0 or blank removes the line.
+window.setCartQty = function(productId, raw) {
+    const item = posCart.find(i => i.id === productId);
+    if (!item) return;
+    const state = window.BlissburnState;
+    const prod = state.products.find(p => p.id === productId);
+
+    let q = parseInt(raw, 10);
+    if (isNaN(q) || q < 0) q = item.qty; // ignore garbage, keep current
+
+    if (q <= 0) {
+        posCart = posCart.filter(i => i.id !== productId);
+    } else {
+        const totalStock = getSellableStock(prod.name);
+        if (q > totalStock) {
+            showToast("warning", "Stock Limit Reached", `Only ${totalStock} fresh units of ${prod.name} available.`);
+            q = totalStock;
+        }
+        item.qty = q;
+    }
+
+    renderCart();
+    renderProductCatalog(getActiveCategory(), document.getElementById("posSearch").value);
+};
+
 // Clear cart
 function clearCart() {
     posCart = [];
@@ -264,7 +355,8 @@ function renderCart() {
             </div>
             <div class="flex items-center gap-1.5">
                 <button class="w-7 h-7 flex items-center justify-center rounded-full bg-surface-container hover:bg-surface-container-high transition-colors" onclick="adjustCartQty('${item.id}', -1)"><span class="material-symbols-outlined text-sm">remove</span></button>
-                <span class="text-sm font-semibold w-8 text-center">${item.qty}</span>
+                <input type="number" min="1" value="${item.qty}" onchange="setCartQty('${item.id}', this.value)" aria-label="Quantity for ${item.name}"
+                    class="w-12 text-center text-sm font-semibold bg-surface-container border border-outline-variant/40 rounded-lg py-1 focus:outline-none focus:ring-2 focus:ring-primary-container">
                 <button class="w-7 h-7 flex items-center justify-center rounded-full bg-surface-container hover:bg-surface-container-high transition-colors" onclick="adjustCartQty('${item.id}', 1)"><span class="material-symbols-outlined text-sm">add</span></button>
             </div>
             <span class="text-sm font-semibold text-on-surface ml-auto whitespace-nowrap">LKR ${itemLineTotal.toFixed(2)}</span>
