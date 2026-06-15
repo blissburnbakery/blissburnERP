@@ -129,14 +129,42 @@ model Invoice {
   outstanding  Float         @default(0.0)
   paidAmount   Float         @default(0.0)
   status       String        // Paid, Unpaid, Partially Paid, Overdue
+  // Audit: who rang up the sale, and the most recent admin edit (if any)
+  createdById      String?
+  createdByName    String?
+  lastEditedById   String?
+  lastEditedByName String?
+  lastEditedAt     DateTime?
+  editCount        Int        @default(0)
   items        InvoiceItem[]
+  editRequests InvoiceEditRequest[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
-  
+
   @@index([partnerId])
   @@index([invoiceNo])
   @@index([date])
   @@index([customerType, status])
+}
+
+// 7b. Sales-staff requests for an admin to correct an issued invoice
+model InvoiceEditRequest {
+  id              String   @id @default(uuid())
+  invoiceId       String
+  invoice         Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoiceNo       String
+  requestedById   String
+  requestedByName String
+  reason          String   // free-text: what the sales member says is wrong
+  status          String   @default("pending") // pending | resolved | rejected
+  resolvedById    String?
+  resolvedByName  String?
+  resolutionNote  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status])
+  @@index([invoiceId])
 }
 
 // 8. Invoice Line Items Table

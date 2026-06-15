@@ -164,6 +164,7 @@ function updateHeaderTitles(view) {
         production: { main: "Baking", sub: "Record what you bake — ingredients are deducted automatically" },
         inventory: { main: "Stock & Ingredients", sub: "Raw materials, fresh-stock deliveries, and recipes" },
         b2b: { main: "Business Orders", sub: "Shops and businesses that buy wholesale on account" },
+        invoices: { main: "Invoices", sub: "All sales receipts and invoices — who made them, and edit requests" },
         accounts: { main: "Money & Payments", sub: "Money owed to you, payments received, and the money log" },
         reports: { main: "Reports", sub: "Sales, profit, and demand forecasts for any date range" },
         settings: { main: "Settings", sub: "Bakery details, default rates, staff, and data tools" }
@@ -181,6 +182,7 @@ function renderView(view) {
     if (view === "production" && window.renderProduction) window.renderProduction();
     if (view === "inventory" && window.renderInventory) window.renderInventory();
     if (view === "b2b" && window.renderB2B) window.renderB2B();
+    if (view === "invoices" && window.renderInvoices) window.renderInvoices();
     if (view === "accounts" && window.renderAccounts) window.renderAccounts();
     if (view === "reports" && window.renderReports) window.renderReports();
     if (view === "settings" && window.renderSettings) window.renderSettings();
@@ -283,32 +285,23 @@ function updateUserAvatar(role, nameDisp, roleDisp) {
     roleDisp.innerText = profile.role;
 }
 
-// Restrict components based on user role
+// Restrict components based on user role.
+// Single source of truth is window.checkViewPermission (defined in auth.js), so
+// the sidebar always matches the actual route permissions for the active role.
 function applyRoleRestrictions(role) {
-    const navLinks = document.querySelectorAll(".sidebar-nav .nav-link");
-    
+    const navLinks = [...document.querySelectorAll(".sidebar-nav .nav-link")];
+    const isPermitted = (view) => window.checkViewPermission ? window.checkViewPermission(view) : true;
+
     navLinks.forEach(link => {
-        const view = link.getAttribute("data-view");
-        
-        // Role permissions logic
-        let permitted = false;
-        if (role === "admin") permitted = true;
-        else if (role === "production" && ["dashboard", "production", "inventory"].includes(view)) permitted = true;
-        else if (role === "sales" && ["dashboard", "pos"].includes(view)) permitted = true;
-        else if (role === "delivery" && ["dashboard", "b2b"].includes(view)) permitted = true;
-        else if (role === "accountant" && ["dashboard", "b2b", "accounts", "reports"].includes(view)) permitted = true;
-        
-        if (permitted) {
-            link.style.display = "flex";
-        } else {
-            link.style.display = "none";
-            // If currently viewing a locked tab, force back to dashboard
-            if (link.classList.contains("active")) {
-                const dashLink = document.querySelector('[data-view="dashboard"]');
-                if (dashLink) dashLink.click();
-            }
-        }
+        link.style.display = isPermitted(link.getAttribute("data-view")) ? "flex" : "none";
     });
+
+    // If the active tab is now hidden for this role, jump to the first permitted tab
+    const active = document.querySelector(".sidebar-nav .nav-link.active");
+    if (active && active.style.display === "none") {
+        const firstPermitted = navLinks.find(l => l.style.display !== "none");
+        if (firstPermitted) firstPermitted.click();
+    }
 }
 
 // Audit FIFO queues for expiration and B2B invoices for overdue debt relative to simulated date

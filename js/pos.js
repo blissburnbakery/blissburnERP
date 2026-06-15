@@ -581,12 +581,32 @@ function launchReceiptDialog(invoice, cartItems) {
     
     document.getElementById("rNum").innerText = invoice.invoiceNo || invoice.id;
     document.getElementById("rDate").innerText = invoice.date;
+
+    // Bakery header details from Settings (fall back to defaults already in markup)
+    const bcfg = (window.BlissburnState.bakeryConfig) || {};
+    const setText = (id, val) => { const el = document.getElementById(id); if (el && val) el.innerText = val; };
+    setText("rBizName", bcfg.name);
+    setText("rBizAddr", bcfg.address);
+    setText("rBizPhone", bcfg.phone);
     
     const state = window.BlissburnState;
-    const actingRole = state.currentRole === "admin" ? "Owner / Admin" : (state.currentRole === "sales" ? "POS Register" : "System Operator");
-    document.getElementById("rOperator").innerText = actingRole;
+    // Show who actually created the sale (stored on the invoice); fall back to active role
+    const fallbackOperator = state.currentRole === "admin" ? "Owner / Admin" : (state.currentRole === "sales" ? "POS Register" : "System Operator");
+    document.getElementById("rOperator").innerText = invoice.createdByName || fallbackOperator;
     document.getElementById("rCustomer").innerText = invoice.customerName;
-    
+
+    // Edit-audit line — only shown when an admin has corrected this invoice
+    const editedRow = document.getElementById("rEditedRow");
+    if (editedRow) {
+        if ((invoice.editCount || 0) > 0 && invoice.lastEditedByName) {
+            const when = invoice.lastEditedAt ? new Date(invoice.lastEditedAt).toLocaleDateString() : "";
+            document.getElementById("rEdited").innerText = `${invoice.lastEditedByName}${when ? " on " + when : ""}`;
+            editedRow.classList.remove("hidden");
+        } else {
+            editedRow.classList.add("hidden");
+        }
+    }
+
     const itemsBody = document.getElementById("receiptItemsBody");
     itemsBody.innerHTML = "";
     

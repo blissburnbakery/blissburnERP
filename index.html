@@ -134,6 +134,10 @@
                 <span class="material-symbols-outlined text-xl">local_shipping</span>
                 <span>Business Orders</span>
             </a>
+            <a href="#invoices" class="nav-link flex items-center gap-3 px-4 py-3 rounded-full text-sm font-medium transition-all" data-view="invoices">
+                <span class="material-symbols-outlined text-xl">receipt_long</span>
+                <span>Invoices</span>
+            </a>
             <a href="#accounts" class="nav-link flex items-center gap-3 px-4 py-3 rounded-full text-sm font-medium transition-all" data-view="accounts">
                 <span class="material-symbols-outlined text-xl">account_balance</span>
                 <span>Money & Payments</span>
@@ -752,6 +756,70 @@
                 </div>
             </section>
 
+            <!-- ===== 5b. INVOICES VIEW (all receipts + edit requests) ===== -->
+            <section id="view-invoices" class="viewport-section">
+                <div class="space-y-6">
+                    <!-- Admin: pending edit requests -->
+                    <div id="invoiceEditRequestsPanel" class="bg-surface rounded-2xl border border-outline-variant/30 p-5 hidden">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="material-symbols-outlined text-amber-600">rate_review</span>
+                            <h3 class="font-display font-bold text-on-surface">Pending Edit Requests</h3>
+                            <span id="invoiceEditRequestsCount" class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">0</span>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs md:text-sm">
+                                <thead>
+                                    <tr class="text-left text-on-surface-variant border-b border-outline-variant/40">
+                                        <th class="px-3 py-2 font-medium">Invoice</th>
+                                        <th class="px-3 py-2 font-medium">Requested By</th>
+                                        <th class="px-3 py-2 font-medium">What's wrong</th>
+                                        <th class="px-3 py-2 font-medium text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="invoiceEditRequestsBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- All invoices -->
+                    <div class="bg-surface rounded-2xl border border-outline-variant/30 p-5">
+                        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
+                            <div>
+                                <h3 class="font-display font-bold text-on-surface">All Invoices</h3>
+                                <p class="text-[11px] text-on-surface-variant mt-0.5">Every receipt and invoice, who created it, and any admin edits</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <div class="relative">
+                                    <span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-on-surface-variant text-base">search</span>
+                                    <input type="text" id="invoicesSearch" placeholder="Search invoices, customer, staff..." class="w-full md:w-72 bg-surface-container border border-outline-variant/50 rounded-full pl-8 pr-3 py-1.5 text-xs text-on-surface focus:outline-none focus:ring-1 focus:ring-primary-container">
+                                </div>
+                                <button class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-surface-container hover:bg-surface-container-high text-on-surface rounded-full border border-outline-variant/30 transition-colors" id="exportInvoicesCSVBtn">
+                                    <span class="material-symbols-outlined text-sm">download</span> CSV
+                                </button>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs md:text-sm">
+                                <thead>
+                                    <tr class="text-left text-on-surface-variant border-b border-outline-variant/40">
+                                        <th class="px-3 py-2 font-medium">Invoice No.</th>
+                                        <th class="px-3 py-2 font-medium">Date</th>
+                                        <th class="px-3 py-2 font-medium">Customer</th>
+                                        <th class="px-3 py-2 font-medium">Type</th>
+                                        <th class="px-3 py-2 font-medium text-right">Total</th>
+                                        <th class="px-3 py-2 font-medium">Status</th>
+                                        <th class="px-3 py-2 font-medium">Created By</th>
+                                        <th class="px-3 py-2 font-medium text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="invoicesTableBody"></tbody>
+                            </table>
+                        </div>
+                        <div id="invoicesPaginationContainer" class="mt-3"></div>
+                    </div>
+                </div>
+            </section>
+
             <!-- ===== 6. ACCOUNTS & LEDGER VIEW ===== -->
             <section id="view-accounts" class="viewport-section">
                 <div class="flex flex-col gap-6">
@@ -1191,8 +1259,9 @@
         <div class="p-6">
             <div class="text-center flex flex-col items-center gap-1 mb-4">
                 <img src="assets/logo.png" class="logo-blend h-12 w-auto object-contain mb-2" alt="BlissBurn Logo">
-                <p class="text-xs text-on-surface-variant">Bakery Products Manufacturing & Distribution</p>
-                <p class="text-xs text-on-surface-variant -mt-0.5">Industrial Zone, Sri Lanka</p>
+                <p class="text-sm font-bold text-on-surface" id="rBizName">Blissburn Products Co.</p>
+                <p class="text-xs text-on-surface-variant" id="rBizAddr">Industrial Zone, Sri Lanka</p>
+                <p class="text-xs text-on-surface-variant -mt-0.5" id="rBizPhone">+94 11 2345 678</p>
             </div>
             <hr class="border-outline-variant/40 my-3">
             <div class="text-xs space-y-1 mb-3">
@@ -1200,6 +1269,7 @@
                 <p><strong>Date:</strong> <span id="rDate">2026-05-26</span></p>
                 <p><strong>Operator:</strong> <span id="rOperator">Retail Sales</span></p>
                 <p><strong>Customer:</strong> <span id="rCustomer">Walk-in Cash Guest</span></p>
+                <p class="hidden" id="rEditedRow"><strong>Edited by:</strong> <span id="rEdited"></span></p>
             </div>
             <hr class="border-outline-variant/40 my-3">
             <table class="w-full text-xs">
@@ -1232,13 +1302,13 @@
                 <p class="text-on-surface-variant">Software: Blissburn Digital Management</p>
             </div>
             <!-- Optional SMS receipt -->
-            <div class="flex items-center gap-2 mt-4" id="receiptSmsRow">
+            <div class="flex items-center gap-2 mt-4 no-print" id="receiptSmsRow">
                 <input type="text" id="receiptSmsPhone" placeholder="Customer mobile (07XXXXXXXX)" class="flex-1 bg-surface-container border border-outline-variant/50 rounded-full px-3 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
                 <button class="flex items-center justify-center gap-1.5 px-3 py-2 bg-surface-container text-on-surface rounded-full text-sm font-medium hover:bg-surface-container-high border border-outline-variant/30 transition-colors whitespace-nowrap" id="sendReceiptSmsBtn">
                     <span class="material-symbols-outlined text-sm">sms</span> Text Receipt
                 </button>
             </div>
-            <div class="flex gap-3 mt-3">
+            <div class="flex gap-3 mt-3 no-print">
                 <button class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-on-primary rounded-full text-sm font-medium hover:bg-primary/90 transition-colors" onclick="(window.printWithAnimation || window.print)('receipt')">
                     <span class="material-symbols-outlined text-sm">print</span> Print Receipt
                 </button>
@@ -1286,8 +1356,8 @@
                     <tr class="bg-surface-container">
                         <th class="px-3 py-2 text-left font-medium rounded-l-lg">Baked Item Details</th>
                         <th class="px-3 py-2 text-center font-medium">Quantity</th>
-                        <th class="px-3 py-2 text-right font-medium">B2C Retail Rate</th>
-                        <th class="px-3 py-2 text-right font-medium">Business Rate</th>
+                        <th class="px-3 py-2 text-right font-medium inv-rate-col">B2C Retail Rate</th>
+                        <th class="px-3 py-2 text-right font-medium inv-rate-col">Business Rate</th>
                         <th class="px-3 py-2 text-right font-medium rounded-r-lg">Total Invoice Price</th>
                     </tr>
                 </thead>
@@ -1311,7 +1381,7 @@
                 <p class="text-on-surface-variant">Note: Subject to 30-day or 60-day credit terms. Late fees accrue interest charges after due date.</p>
             </div>
 
-            <div class="flex flex-col sm:flex-row gap-3">
+            <div class="flex flex-col sm:flex-row gap-3 no-print">
                 <button class="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-primary text-on-primary rounded-full text-xs font-semibold hover:bg-primary/90 transition-colors" onclick="(window.printWithAnimation || window.print)('invoice')">
                     <span class="material-symbols-outlined text-sm">print</span> Print Invoice
                 </button>
@@ -1322,6 +1392,84 @@
                     <span class="material-symbols-outlined text-xs">cancel</span> Void / Cancel
                 </button>
                 <button class="px-5 py-2 bg-surface-container text-on-surface rounded-full text-xs font-semibold hover:bg-surface-container-high transition-colors" id="closeInvoiceDialog">Dismiss</button>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- ===== DIALOG: REQUEST INVOICE EDIT (sales) ===== -->
+    <dialog id="editRequestDialog">
+        <div class="p-6 max-w-md">
+            <div class="flex items-center gap-2 mb-1">
+                <span class="material-symbols-outlined text-amber-600">edit_note</span>
+                <h3 class="font-display text-lg font-bold text-on-surface">Request Invoice Edit</h3>
+            </div>
+            <p class="text-xs text-on-surface-variant mb-4">You can't edit issued invoices directly. Describe what's wrong and an admin will review and correct it.</p>
+            <div class="bg-surface-container rounded-xl px-3 py-2 mb-3 text-sm">
+                <span class="text-on-surface-variant">Invoice:</span> <span class="font-semibold text-on-surface" id="editReqInvoiceNo">—</span>
+            </div>
+            <input type="hidden" id="editReqInvoiceId">
+            <label class="block text-xs font-medium text-on-surface-variant mb-1.5" for="editReqReason">What needs to be corrected?</label>
+            <textarea id="editReqReason" rows="4" placeholder="e.g. Quantity for Chocolate cream bun should be 5, not 8." class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container"></textarea>
+            <div class="flex gap-3 mt-4">
+                <button class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-on-primary rounded-full text-sm font-medium hover:bg-primary/90 transition-colors" id="submitEditRequestBtn">
+                    <span class="material-symbols-outlined text-sm">send</span> Send Request
+                </button>
+                <button class="px-5 py-2.5 bg-surface-container text-on-surface rounded-full text-sm font-medium hover:bg-surface-container-high transition-colors" id="closeEditRequestDialog">Cancel</button>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- ===== DIALOG: ADMIN EDIT INVOICE ===== -->
+    <dialog id="editInvoiceDialog" class="dialog-wide">
+        <div class="p-6">
+            <div class="flex items-center gap-2 mb-1">
+                <span class="material-symbols-outlined text-primary">edit_document</span>
+                <h3 class="font-display text-lg font-bold text-on-surface">Edit Invoice <span id="editInvNo" class="text-primary"></span></h3>
+            </div>
+            <p class="text-xs text-on-surface-variant mb-4">Adjust quantities or customer details. Stock, the money log, and B2B credit are reconciled automatically, and the edit is recorded.</p>
+
+            <div id="editInvRequestContext" class="hidden bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mb-4 text-xs text-amber-800"></div>
+            <input type="hidden" id="editInvId">
+            <input type="hidden" id="editInvRequestId">
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                <div>
+                    <label class="block text-xs font-medium text-on-surface-variant mb-1.5" for="editInvCustomerName">Customer Name</label>
+                    <input type="text" id="editInvCustomerName" class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-on-surface-variant mb-1.5" for="editInvCustomerPhone">Customer Phone</label>
+                    <input type="text" id="editInvCustomerPhone" class="w-full bg-surface-container border border-outline-variant/50 rounded-xl px-3 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container">
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-xs md:text-sm">
+                    <thead>
+                        <tr class="text-left text-on-surface-variant border-b border-outline-variant/40">
+                            <th class="px-2 py-2 font-medium">Item</th>
+                            <th class="px-2 py-2 font-medium text-right">Unit Price</th>
+                            <th class="px-2 py-2 font-medium text-center">Quantity</th>
+                            <th class="px-2 py-2 font-medium text-right">Line Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="editInvItemsBody"></tbody>
+                </table>
+            </div>
+            <p class="text-[11px] text-on-surface-variant mt-2">Set a quantity to 0 to remove a line. At least one item must remain.</p>
+
+            <div class="flex justify-end mt-3">
+                <div class="w-60 space-y-1 text-sm">
+                    <div class="flex justify-between text-on-surface-variant"><span>New Total (incl. VAT):</span><span class="font-bold text-on-surface" id="editInvNewTotal">LKR 0.00</span></div>
+                    <div class="flex justify-between text-on-surface-variant"><span>Was:</span><span id="editInvOldTotal">LKR 0.00</span></div>
+                </div>
+            </div>
+
+            <div class="flex gap-3 mt-5">
+                <button class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-on-primary rounded-full text-sm font-medium hover:bg-primary/90 transition-colors" id="saveInvoiceEditBtn">
+                    <span class="material-symbols-outlined text-sm">save</span> Save Changes
+                </button>
+                <button class="px-5 py-2.5 bg-surface-container text-on-surface rounded-full text-sm font-medium hover:bg-surface-container-high transition-colors" id="closeEditInvoiceDialog">Cancel</button>
             </div>
         </div>
     </dialog>
@@ -1715,6 +1863,7 @@
     <script src="js/production.js"></script>
     <script src="js/inventory.js"></script>
     <script src="js/b2b.js"></script>
+    <script src="js/invoices.js"></script>
     <script src="js/accounts.js"></script>
     <script src="js/forecast.js"></script>
     <script src="js/reports.js"></script>

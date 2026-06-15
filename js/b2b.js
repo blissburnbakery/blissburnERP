@@ -285,13 +285,16 @@ window.viewInvoiceDocument = function(invoiceId) {
     ];
     
     itemsList.forEach(item => {
-        const lineTotal = item.wholesalePrice * item.qty;
+        // Stored InvoiceItems use productName/quantity; older mock items use name/qty
+        const name = item.name || item.productName;
+        const qty = item.qty != null ? item.qty : item.quantity;
+        const lineTotal = item.wholesalePrice * qty;
         const row = document.createElement("tr");
         row.innerHTML = `
-            <td class="px-3 py-2 border-t border-outline-variant/20"><strong>${item.name}</strong></td>
-            <td class="px-3 py-2 border-t border-outline-variant/20 text-center">${item.qty} units</td>
-            <td class="px-3 py-2 border-t border-outline-variant/20 text-right">LKR ${item.retailPrice.toFixed(0)}</td>
-            <td class="px-3 py-2 border-t border-outline-variant/20 text-right">LKR ${item.wholesalePrice.toFixed(0)}</td>
+            <td class="px-3 py-2 border-t border-outline-variant/20"><strong>${name}</strong></td>
+            <td class="px-3 py-2 border-t border-outline-variant/20 text-center">${qty} units</td>
+            <td class="px-3 py-2 border-t border-outline-variant/20 text-right inv-rate-col">LKR ${item.retailPrice.toFixed(0)}</td>
+            <td class="px-3 py-2 border-t border-outline-variant/20 text-right inv-rate-col">LKR ${item.wholesalePrice.toFixed(0)}</td>
             <td class="px-3 py-2 border-t border-outline-variant/20 text-right">LKR ${lineTotal.toLocaleString('en-US')}</td>
         `;
         itemsBody.appendChild(row);

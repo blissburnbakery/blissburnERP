@@ -94,7 +94,8 @@ window.syncWithBackend = async function() {
             fetch(`${API_BASE_URL}/invoices?simulatedDate=${window.BlissburnState.simulatedDate}`),
             fetch(`${API_BASE_URL}/notifications`),
             fetch(`${API_BASE_URL}/financial-log`),
-            fetch(`${API_BASE_URL}/config`)
+            fetch(`${API_BASE_URL}/config`),
+            fetch(`${API_BASE_URL}/invoice-edit-requests`)
         ];
 
         if (savedRole === 'admin') {
@@ -129,9 +130,11 @@ window.syncWithBackend = async function() {
         const notifications = await results[6].json();
         const financialLog = await results[7].json();
         const config = await results[8].json();
+        const editRequests = await results[9].json();
+        window.BlissburnState.invoiceEditRequests = Array.isArray(editRequests) ? editRequests : [];
 
-        if (savedRole === 'admin' && results[9]) {
-            const staff = await results[9].json();
+        if (savedRole === 'admin' && results[10]) {
+            const staff = await results[10].json();
             window.BlissburnState.staff = staff;
         }
         

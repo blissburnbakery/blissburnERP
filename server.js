@@ -183,6 +183,8 @@ function isAdminOnlyRoute(req) {
     if (req.method === 'PUT' && req.path === '/config') return true;  // global settings writes
     if (req.method === 'POST' && req.path === '/sms/test') return true; // gateway test send
     if (req.method === 'POST' && req.path === '/system/wipe') return true; // factory reset
+    if (req.method === 'PUT' && req.path.startsWith('/invoices/')) return true; // admin invoice edits
+    if (req.method === 'POST' && req.path.startsWith('/invoice-edit-requests/')) return true; // resolve/reject
     if (req.method === 'DELETE') return true;                         // all deletes are owner-level
     return false;
 }
@@ -736,6 +738,10 @@ app.post('/api/checkout', async (req, res) => {
                 ? `INV-${year}-${String(seq + 1).padStart(4, '0')}`
                 : `B2C-TXN-${1001 + seq}`;
                 
+            // Record which staff member rang up this sale (server-derived from the session)
+            const actingStaff = await tx.staff.findUnique({ where: { id: req.staff.staffId }, select: { name: true } });
+            const createdByName = (actingStaff && actingStaff.name) || req.staff.username;
+
             const dbInvoice = await tx.invoice.create({
                 data: {
                     invoiceNo: invoiceNo,
@@ -753,7 +759,9 @@ app.post('/api/checkout', async (req, res) => {
                     method: paymentMethod,
                     outstanding: outstanding,
                     paidAmount: paymentMethod === 'credit' ? 0.0 : serverGrandTotal,
-                    status: invoiceStatus
+                    status: invoiceStatus,
+                    createdById: req.staff.staffId,
+                    createdByName: createdByName
                 }
             });
 
@@ -965,6 +973,319 @@ app.post('/api/invoices/:id/void', async (req, res) => {
         res.json({ success: true, invoice: result });
     } catch (e) {
         res.status(500).json({ error: 'Failed to void invoice', details: e.message });
+    }
+});
+
+/* ==========================================================================
+   3b. INVOICE EDIT-REQUEST WORKFLOW & ADMIN IN-PLACE EDITS
+   ========================================================================== */
+
+// POST: A sales member flags an issued invoice for admin correction (no direct edit)
+app.post('/api/invoices/:id/edit-request', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const reason = (req.body && req.body.reason || '').trim();
+        if (!reason) return res.status(400).json({ error: 'Please describe what needs to be corrected.' });
+
+        const result = await withTx(async (tx) => {
+            const invoice = await tx.invoice.findFirst({
+                where: { OR: [{ id }, { invoiceNo: id }] }
+            });
+            if (!invoice) throw new Error('Invoice not found');
+
+            const staff = await tx.staff.findUnique({ where: { id: req.staff.staffId }, select: { name: true } });
+            const requestedByName = (staff && staff.name) || req.staff.username;
+
+            const request = await tx.invoiceEditRequest.create({
+                data: {
+                    invoiceId: invoice.id,
+                    invoiceNo: invoice.invoiceNo,
+                    requestedById: req.staff.staffId,
+                    requestedByName,
+                    reason,
+                    status: 'pending'
+                }
+            });
+
+            await tx.notification.create({
+                data: {
+                    type: 'warning',
+                    title: 'Invoice Edit Requested',
+                    desc: `${requestedByName} requested a correction to ${invoice.invoiceNo}: "${reason}"`,
+                    time: new Date().toISOString(),
+                    isAudit: true
+                }
+            });
+
+            return request;
+        });
+
+        res.json({ success: true, request: result });
+    } catch (e) {
+        console.error('Edit request failed:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// GET: Edit requests — admins see all; other staff see only their own
+app.get('/api/invoice-edit-requests', async (req, res) => {
+    try {
+        const where = req.staff.role === 'admin' ? {} : { requestedById: req.staff.staffId };
+        const requests = await prisma.invoiceEditRequest.findMany({
+            where,
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json(requests);
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to fetch edit requests', details: e.message });
+    }
+});
+
+// POST: Admin resolves or rejects an edit request (admin-only via isAdminOnlyRoute)
+app.post('/api/invoice-edit-requests/:id/resolve', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const action = (req.body && req.body.action) || 'resolve'; // 'resolve' | 'reject'
+        const note = (req.body && req.body.note || '').trim() || null;
+
+        const result = await withTx(async (tx) => {
+            const request = await tx.invoiceEditRequest.findUnique({ where: { id } });
+            if (!request) throw new Error('Edit request not found');
+
+            const staff = await tx.staff.findUnique({ where: { id: req.staff.staffId }, select: { name: true } });
+            return tx.invoiceEditRequest.update({
+                where: { id },
+                data: {
+                    status: action === 'reject' ? 'rejected' : 'resolved',
+                    resolvedById: req.staff.staffId,
+                    resolvedByName: (staff && staff.name) || req.staff.username,
+                    resolutionNote: note
+                }
+            });
+        });
+
+        res.json({ success: true, request: result });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// PUT: Admin edits an issued invoice in place, reconciling money & finished stock (admin-only)
+app.put('/api/invoices/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { items, customerName, customerPhone, taxRate, editRequestId, note } = req.body;
+
+        if (!items || !Array.isArray(items) || items.length === 0) {
+            return res.status(400).json({ error: 'At least one line item is required.' });
+        }
+
+        const result = await withTx(async (tx) => {
+            const invoice = await tx.invoice.findFirst({
+                where: { OR: [{ id }, { invoiceNo: id }] },
+                include: { items: true }
+            });
+            if (!invoice) throw new Error('Invoice not found');
+            if (invoice.status === 'Refunded' || invoice.status === 'Voided') {
+                throw new Error(`A ${invoice.status} invoice can no longer be edited.`);
+            }
+
+            // 1. Recompute money server-side from DB prices (never trust the client)
+            const allProducts = await tx.product.findMany();
+            let newTotal = 0;        // retail subtotal
+            let newGrandTotal = 0;   // net before tax
+            const cleanItems = [];
+            for (const it of items) {
+                const dbProduct = allProducts.find(p => p.name === it.name);
+                if (!dbProduct) throw new Error(`Product "${it.name}" not found`);
+                const qty = Math.max(0, Math.trunc(Number(it.qty)));
+                if (qty <= 0) continue;
+                newTotal += dbProduct.retailPrice * qty;
+                const unitPrice = invoice.customerType === 'B2B' ? dbProduct.wholesalePrice : dbProduct.retailPrice;
+                newGrandTotal += unitPrice * qty;
+                cleanItems.push({
+                    name: it.name, qty,
+                    retailPrice: dbProduct.retailPrice,
+                    wholesalePrice: dbProduct.wholesalePrice
+                });
+            }
+            if (cleanItems.length === 0) throw new Error('Edited invoice must keep at least one item with quantity.');
+
+            const newDiscount = newTotal - newGrandTotal;
+            const newTaxRate = taxRate !== undefined ? Number(taxRate) : invoice.taxRate;
+            const newTaxAmount = newGrandTotal * (newTaxRate / 100);
+            newGrandTotal = newGrandTotal + newTaxAmount;
+
+            // 2. Finished-product stock reconciliation, per product, by quantity delta.
+            //    Increases deplete active non-expired batches FIFO; decreases are returned
+            //    to the newest matching batch (or a correction batch). Money below is exact;
+            //    finished-stock is best-effort (no invoice->batch link exists in this app).
+            const oldQtyByName = {};
+            for (const oi of invoice.items) oldQtyByName[oi.productName] = (oldQtyByName[oi.productName] || 0) + oi.quantity;
+            const newQtyByName = {};
+            for (const ni of cleanItems) newQtyByName[ni.name] = (newQtyByName[ni.name] || 0) + ni.qty;
+
+            const allNames = new Set([...Object.keys(oldQtyByName), ...Object.keys(newQtyByName)]);
+            for (const name of allNames) {
+                const delta = (newQtyByName[name] || 0) - (oldQtyByName[name] || 0);
+                if (delta === 0) continue;
+
+                if (delta > 0) {
+                    // Need to deplete `delta` more finished units from active non-expired batches (FIFO)
+                    let toDeplete = delta;
+                    const batches = (await tx.productionLog.findMany({
+                        where: { active: true, expiryDate: { gte: invoice.date } },
+                        include: { product: true }
+                    })).filter(b => b.product.name === name)
+                       .sort((a, b) => new Date(a.dateProduced) - new Date(b.dateProduced));
+                    const avail = batches.reduce((s, b) => s + b.quantity, 0);
+                    if (avail < toDeplete) {
+                        throw new Error(`Insufficient fresh stock for ${name}: need ${toDeplete} more unit(s) but only ${avail} available.`);
+                    }
+                    for (const b of batches) {
+                        if (toDeplete <= 0) break;
+                        const take = Math.min(b.quantity, toDeplete);
+                        await tx.productionLog.update({
+                            where: { id: b.id },
+                            data: { quantity: { decrement: take }, active: (b.quantity - take) > 0 }
+                        });
+                        toDeplete -= take;
+                    }
+                } else {
+                    // Return `-delta` finished units to stock: newest matching batch, else a correction batch
+                    let toReturn = -delta;
+                    const newest = (await tx.productionLog.findMany({
+                        include: { product: true }
+                    })).filter(b => b.product.name === name)
+                       .sort((a, b) => new Date(b.dateProduced) - new Date(a.dateProduced))[0];
+                    if (newest) {
+                        await tx.productionLog.update({
+                            where: { id: newest.id },
+                            data: { quantity: { increment: toReturn }, active: true }
+                        });
+                    } else {
+                        const prod = allProducts.find(p => p.name === name);
+                        if (prod) {
+                            const exp = new Date(invoice.date);
+                            exp.setDate(exp.getDate() + (prod.shelfLife || 1));
+                            await tx.productionLog.create({
+                                data: {
+                                    batchCode: `BCH-EDIT-${Date.now().toString(36).toUpperCase()}`,
+                                    productId: prod.id,
+                                    quantity: toReturn,
+                                    dateProduced: invoice.date,
+                                    expiryDate: exp.toISOString().split('T')[0],
+                                    active: true
+                                }
+                            });
+                        }
+                    }
+                }
+            }
+
+            // 3. B2B credit balance/outstanding reconciliation
+            const grandDelta = newGrandTotal - invoice.grandTotal;
+            let newOutstanding = invoice.outstanding;
+            let newPaidAmount = invoice.paidAmount;
+            let newStatus = invoice.status;
+            if (invoice.customerType === 'B2B' && invoice.method === 'credit' && invoice.partnerId) {
+                const partner = await tx.b2bPartner.findUnique({ where: { id: invoice.partnerId } });
+                if (partner) {
+                    const projectedBalance = partner.balance + grandDelta;
+                    if (grandDelta > 0 && projectedBalance > partner.limit) {
+                        throw new Error(`Edit would breach ${partner.name}'s credit limit (LKR ${partner.limit.toLocaleString()}).`);
+                    }
+                    await tx.b2bPartner.update({
+                        where: { id: partner.id },
+                        data: { balance: Math.max(0, projectedBalance) }
+                    });
+                }
+                newOutstanding = Math.max(0, invoice.outstanding + grandDelta);
+                newStatus = newOutstanding <= 0 ? 'Paid' : invoice.status;
+            } else {
+                // Cash/card invoices are settled in full
+                newPaidAmount = newGrandTotal;
+            }
+
+            // 4. Ledger adjustment for the money delta (skip if zero)
+            if (Math.abs(grandDelta) > 0.001) {
+                await tx.financialLog.create({
+                    data: {
+                        txnCode: `TXN-${Date.now().toString(36).toUpperCase()}`,
+                        date: invoice.date,
+                        description: `Invoice ${invoice.invoiceNo} edited (LKR ${invoice.grandTotal.toFixed(2)} → ${newGrandTotal.toFixed(2)})`,
+                        method: invoice.method,
+                        amount: grandDelta
+                    }
+                });
+            }
+
+            // 5. Replace line items + update invoice with edit audit stamp
+            await tx.invoiceItem.deleteMany({ where: { invoiceId: invoice.id } });
+            for (const ci of cleanItems) {
+                await tx.invoiceItem.create({
+                    data: {
+                        invoiceId: invoice.id,
+                        productName: ci.name,
+                        quantity: ci.qty,
+                        retailPrice: ci.retailPrice,
+                        wholesalePrice: ci.wholesalePrice
+                    }
+                });
+            }
+
+            const editor = await tx.staff.findUnique({ where: { id: req.staff.staffId }, select: { name: true } });
+            const updated = await tx.invoice.update({
+                where: { id: invoice.id },
+                data: {
+                    customerName: customerName !== undefined ? customerName : invoice.customerName,
+                    customerPhone: customerPhone !== undefined ? (customerPhone || null) : invoice.customerPhone,
+                    total: newTotal,
+                    discount: newDiscount,
+                    tax: newTaxAmount,
+                    taxRate: newTaxRate,
+                    grandTotal: newGrandTotal,
+                    outstanding: newOutstanding,
+                    paidAmount: newPaidAmount,
+                    status: newStatus,
+                    lastEditedById: req.staff.staffId,
+                    lastEditedByName: (editor && editor.name) || req.staff.username,
+                    lastEditedAt: new Date(),
+                    editCount: { increment: 1 }
+                },
+                include: { items: true }
+            });
+
+            // 6. Resolve a linked edit request, if any
+            if (editRequestId) {
+                await tx.invoiceEditRequest.updateMany({
+                    where: { id: editRequestId, status: 'pending' },
+                    data: {
+                        status: 'resolved',
+                        resolvedById: req.staff.staffId,
+                        resolvedByName: (editor && editor.name) || req.staff.username,
+                        resolutionNote: note || `Invoice corrected to LKR ${newGrandTotal.toFixed(2)}`
+                    }
+                });
+            }
+
+            await tx.notification.create({
+                data: {
+                    type: 'info',
+                    title: 'Invoice Edited',
+                    desc: `${(editor && editor.name) || req.staff.username} edited ${invoice.invoiceNo} (now LKR ${newGrandTotal.toFixed(2)}).`,
+                    time: new Date().toISOString(),
+                    isAudit: true
+                }
+            });
+
+            return updated;
+        });
+
+        res.json({ success: true, invoice: result });
+    } catch (e) {
+        console.error('Invoice edit failed, rolled back:', e);
+        res.status(500).json({ error: e.message });
     }
 });
 
