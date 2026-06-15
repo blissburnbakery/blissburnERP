@@ -637,6 +637,14 @@ app.post('/api/checkout', async (req, res) => {
     try {
         const result = await withTx(async (tx) => {
             
+            // Per-partner extra discount off the wholesale price (B2B only)
+            let partnerDiscountPct = 0;
+            if (customerType === 'B2B' && partnerId) {
+                const p = await tx.b2bPartner.findUnique({ where: { id: partnerId }, select: { discountPercent: true } });
+                partnerDiscountPct = (p && p.discountPercent) || 0;
+            }
+            const b2bFactor = 1 - (partnerDiscountPct / 100);
+
             // Server-side price recalculation — never trust client-supplied totals
             const allProducts = await tx.product.findMany();
             let serverTotal = 0;
@@ -645,7 +653,7 @@ app.post('/api/checkout', async (req, res) => {
                 const dbProduct = allProducts.find(p => p.name === cartItem.name);
                 if (!dbProduct) throw new Error(`Product "${cartItem.name}" not found in database`);
                 serverTotal += dbProduct.retailPrice * Number(cartItem.qty);
-                const unitPrice = customerType === 'B2B' ? dbProduct.wholesalePrice : dbProduct.retailPrice;
+                const unitPrice = customerType === 'B2B' ? dbProduct.wholesalePrice * b2bFactor : dbProduct.retailPrice;
                 serverGrandTotal += unitPrice * Number(cartItem.qty);
             }
             const serverDiscount = serverTotal - serverGrandTotal;
@@ -1090,6 +1098,14 @@ app.put('/api/invoices/:id', async (req, res) => {
                 throw new Error(`A ${invoice.status} invoice can no longer be edited.`);
             }
 
+            // Per-partner extra discount off the wholesale price (B2B only)
+            let editPartnerPct = 0;
+            if (invoice.customerType === 'B2B' && invoice.partnerId) {
+                const pp = await tx.b2bPartner.findUnique({ where: { id: invoice.partnerId }, select: { discountPercent: true } });
+                editPartnerPct = (pp && pp.discountPercent) || 0;
+            }
+            const editB2bFactor = 1 - (editPartnerPct / 100);
+
             // 1. Recompute money server-side from DB prices (never trust the client)
             const allProducts = await tx.product.findMany();
             let newTotal = 0;        // retail subtotal
@@ -1101,7 +1117,7 @@ app.put('/api/invoices/:id', async (req, res) => {
                 const qty = Math.max(0, Math.trunc(Number(it.qty)));
                 if (qty <= 0) continue;
                 newTotal += dbProduct.retailPrice * qty;
-                const unitPrice = invoice.customerType === 'B2B' ? dbProduct.wholesalePrice : dbProduct.retailPrice;
+                const unitPrice = invoice.customerType === 'B2B' ? dbProduct.wholesalePrice * editB2bFactor : dbProduct.retailPrice;
                 newGrandTotal += unitPrice * qty;
                 cleanItems.push({
                     name: it.name, qty,
@@ -1305,7 +1321,7 @@ app.get('/api/partners', async (req, res) => {
 
 // POST: Add new B2B Partner
 app.post('/api/partners', async (req, res) => {
-    const { name, address, phone, terms, limit } = req.body;
+    const { name, address, phone, terms, limit, discountPercent } = req.body;
     if (!name || !address || limit === undefined) {
         return res.status(400).json({ error: 'Missing core B2B registration details' });
     }
@@ -1316,7 +1332,8 @@ app.post('/api/partners', async (req, res) => {
                 address,
                 phone: phone || null,
                 terms: Number(terms) || 30,
-                limit: Number(limit)
+                limit: Number(limit),
+                discountPercent: Math.min(100, Math.max(0, Number(discountPercent) || 0))
             }
         });
         
@@ -1521,7 +1538,7 @@ app.delete('/api/products/:id', async (req, res) => {
 app.put('/api/partners/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, address, phone, terms, limit } = req.body;
+        const { name, address, phone, terms, limit, discountPercent } = req.body;
 
         const partner = await prisma.b2bPartner.findUnique({ where: { id } });
         if (!partner) return res.status(404).json({ error: 'Partner not found' });
@@ -1533,7 +1550,8 @@ app.put('/api/partners/:id', async (req, res) => {
                 ...(address !== undefined && { address }),
                 ...(phone !== undefined && { phone: phone || null }),
                 ...(terms !== undefined && { terms: Number(terms) }),
-                ...(limit !== undefined && { limit: Number(limit) })
+                ...(limit !== undefined && { limit: Number(limit) }),
+                ...(discountPercent !== undefined && { discountPercent: Math.min(100, Math.max(0, Number(discountPercent) || 0)) })
             }
         });
         res.json(updated);

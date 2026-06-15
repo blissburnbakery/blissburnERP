@@ -104,6 +104,7 @@ model B2bPartner {
   terms     Int       // 30 or 60 days terms
   limit     Float     // credit ceiling
   balance   Float     @default(0.0) // current outstanding debt
+  discountPercent Float @default(0.0) // extra % off the wholesale price for this partner
   invoices  Invoice[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

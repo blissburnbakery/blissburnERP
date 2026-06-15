@@ -26,6 +26,23 @@ function getSellableStock(productName) {
         .reduce((sum, b) => sum + b.qty, 0);
 }
 
+// Per-partner extra discount (% off wholesale) for the currently selected B2B customer
+window.posPartnerDiscountPct = function() {
+    const select = document.getElementById("posCustomerSelect");
+    if (!select || select.selectedIndex < 0) return 0;
+    const opt = select.options[select.selectedIndex];
+    if (!opt || opt.getAttribute("data-type") !== "B2B") return 0;
+    const partner = (window.BlissburnState.partners || []).find(p => p.id === select.value);
+    return partner && partner.discountPercent ? Number(partner.discountPercent) : 0;
+};
+
+// Effective unit price for an item given the active customer tier (applies the
+// product's wholesale price plus the partner's extra discount for B2B).
+window.posUnitPrice = function(item, isB2B) {
+    if (!isB2B) return item.retailPrice;
+    return item.wholesalePrice * (1 - window.posPartnerDiscountPct() / 100);
+};
+
 // Initialize POS view hook
 window.renderPOS = function() {
     loadB2BCustomerSelectOptions();
@@ -165,11 +182,12 @@ function renderProductCatalog(filterCat = "all", searchQuery = "") {
 
         // Determine active pricing tier
         const isB2B = select.options[select.selectedIndex].getAttribute("data-type") === "B2B";
-        const activePrice = isB2B ? prod.wholesalePrice : prod.retailPrice;
+        const activePrice = window.posUnitPrice(prod, isB2B);
+        const partnerPct = window.posPartnerDiscountPct();
 
         let priceLayout = `<p class="text-sm font-bold text-primary mt-2">LKR ${activePrice.toFixed(2)}</p>`;
         if (isB2B) {
-            priceLayout += `<span class="text-[10px] text-tertiary font-medium">B2B Price</span>`;
+            priceLayout += `<span class="text-[10px] text-tertiary font-medium">B2B Price${partnerPct > 0 ? ` (−${partnerPct}%)` : ''}</span>`;
         }
 
         const materialIcon = mapFAToMaterial(prod.icon);
@@ -340,9 +358,9 @@ function renderCart() {
     let grandTotal = 0;
     
     posCart.forEach(item => {
-        const itemUnitPrice = isB2B ? item.wholesalePrice : item.retailPrice;
+        const itemUnitPrice = window.posUnitPrice(item, isB2B);
         const itemLineTotal = itemUnitPrice * item.qty;
-        
+
         subtotal += item.retailPrice * item.qty;
         grandTotal += itemLineTotal;
         
@@ -703,10 +721,18 @@ function launchReceiptDialog(invoice, cartItems) {
     itemsBody.innerHTML = "";
     
     const isB2B = invoice.customerType === "B2B";
-    
+
     const receiptItems = cartItems || posCart;
+    // For B2B, derive the effective per-unit factor from the invoice itself so the
+    // line prices reflect any partner discount (lines then sum to the net total).
+    let b2bFactor = 1;
+    if (isB2B) {
+        const wholeSub = receiptItems.reduce((s, i) => s + (i.wholesalePrice || 0) * i.qty, 0);
+        const net = (invoice.grandTotal || 0) - (invoice.tax || 0);
+        b2bFactor = wholeSub > 0 ? net / wholeSub : 1;
+    }
     receiptItems.forEach(item => {
-        const itemUnitPrice = isB2B ? item.wholesalePrice : item.retailPrice;
+        const itemUnitPrice = isB2B ? item.wholesalePrice * b2bFactor : item.retailPrice;
         const lineTotal = itemUnitPrice * item.qty;
         
         const row = document.createElement("tr");

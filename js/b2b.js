@@ -82,7 +82,12 @@ function renderB2BPartners() {
                 <span class="text-on-surface-variant">Payment Terms</span>
                 <span class="font-semibold text-on-surface">${partner.terms}d credit</span>
             </div>
-            
+
+            <div class="flex justify-between text-xs py-1.5">
+                <span class="text-on-surface-variant">Extra Discount</span>
+                <span class="font-semibold ${partner.discountPercent > 0 ? 'text-green-700' : 'text-on-surface'}">${partner.discountPercent > 0 ? partner.discountPercent + '% off wholesale' : 'None'}</span>
+            </div>
+
             <!-- Credit utilization progress bar -->
             <div class="mt-2">
                 <div class="flex justify-between text-[10px] text-on-surface-variant mb-1">
@@ -208,9 +213,11 @@ function setupB2BEventListeners() {
         const address = document.getElementById("b2bAddress").value;
         const terms = Number(document.getElementById("b2bTerms").value);
         const limit = Number(document.getElementById("b2bCreditLimit").value);
-        
+        const discEl = document.getElementById("b2bDiscount");
+        const discountPercent = discEl ? Number(discEl.value) || 0 : 0;
+
         const state = window.BlissburnState;
-        
+
         if (window._editingPartnerId) {
             const partner = state.partners.find(p => p.id === window._editingPartnerId);
             if (partner) {
@@ -218,6 +225,7 @@ function setupB2BEventListeners() {
                 partner.address = address;
                 partner.terms = terms;
                 partner.limit = limit;
+                partner.discountPercent = discountPercent;
                 addNotification("info", "Partner Updated", `Profile for ${name} has been updated.`);
             }
             window._editingPartnerId = null;
@@ -229,7 +237,8 @@ function setupB2BEventListeners() {
                 address: address,
                 terms: terms,
                 limit: limit,
-                balance: 0
+                balance: 0,
+                discountPercent: discountPercent
             });
             addNotification("success", "Business Customer Added", `${name} added with a LKR ${limit.toLocaleString()} credit limit.`);
         }
@@ -284,18 +293,25 @@ window.viewInvoiceDocument = function(invoiceId) {
         { name: "Sandwich Bread", qty: 100, retailPrice: 280, wholesalePrice: 210 }
     ];
     
+    // Effective per-unit factor so the Business Rate reflects any partner discount
+    // (derived from the invoice so reprints stay accurate); lines sum to the net total.
+    const wholeSub = itemsList.reduce((s, i) => s + (i.wholesalePrice || 0) * (i.qty != null ? i.qty : i.quantity), 0);
+    const netBeforeTax = (inv.grandTotal || 0) - (inv.tax || 0);
+    const b2bFactor = wholeSub > 0 ? netBeforeTax / wholeSub : 1;
+
     itemsList.forEach(item => {
         // Stored InvoiceItems use productName/quantity; older mock items use name/qty
         const name = item.name || item.productName;
         const qty = item.qty != null ? item.qty : item.quantity;
-        const lineTotal = item.wholesalePrice * qty;
+        const effRate = item.wholesalePrice * b2bFactor;
+        const lineTotal = effRate * qty;
         const row = document.createElement("tr");
         row.innerHTML = `
             <td class="px-3 py-2 border-t border-outline-variant/20"><strong>${name}</strong></td>
             <td class="px-3 py-2 border-t border-outline-variant/20 text-center">${qty} units</td>
             <td class="px-3 py-2 border-t border-outline-variant/20 text-right inv-rate-col">LKR ${item.retailPrice.toFixed(0)}</td>
-            <td class="px-3 py-2 border-t border-outline-variant/20 text-right inv-rate-col">LKR ${item.wholesalePrice.toFixed(0)}</td>
-            <td class="px-3 py-2 border-t border-outline-variant/20 text-right">LKR ${lineTotal.toLocaleString('en-US')}</td>
+            <td class="px-3 py-2 border-t border-outline-variant/20 text-right inv-rate-col">LKR ${effRate.toFixed(0)}</td>
+            <td class="px-3 py-2 border-t border-outline-variant/20 text-right">LKR ${lineTotal.toLocaleString('en-US', {maximumFractionDigits: 0})}</td>
         `;
         itemsBody.appendChild(row);
     });
@@ -421,7 +437,9 @@ window.editPartner = function(partnerId) {
     if (phoneEl) phoneEl.value = partner.phone || '';
     document.getElementById('b2bTerms').value = partner.terms;
     document.getElementById('b2bCreditLimit').value = partner.limit;
-    
+    const discEl = document.getElementById('b2bDiscount');
+    if (discEl) discEl.value = partner.discountPercent || 0;
+
     window._editingPartnerId = partnerId;
     
     const dialog = document.getElementById('addB2BPartnerDialog');

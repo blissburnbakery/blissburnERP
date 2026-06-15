@@ -245,7 +245,7 @@ if (typeof window.executeCheckout === 'function') {
         let grandTotal = 0;
         
         posCart.forEach(item => {
-            const itemUnitPrice = isB2B ? item.wholesalePrice : item.retailPrice;
+            const itemUnitPrice = window.posUnitPrice ? window.posUnitPrice(item, isB2B) : (isB2B ? item.wholesalePrice : item.retailPrice);
             subtotal += item.retailPrice * item.qty;
             grandTotal += itemUnitPrice * item.qty;
         });
@@ -425,8 +425,10 @@ document.addEventListener("DOMContentLoaded", () => {
             const phone = phoneEl ? phoneEl.value.trim() : "";
             const terms = Number(document.getElementById("b2bTerms").value);
             const limit = Number(document.getElementById("b2bCreditLimit").value);
+            const discEl = document.getElementById("b2bDiscount");
+            const discountPercent = discEl ? Number(discEl.value) || 0 : 0;
 
-            const postData = { name, address, phone, terms, limit };
+            const postData = { name, address, phone, terms, limit, discountPercent };
             
             try {
                 // Submitting partner registration or update to server
